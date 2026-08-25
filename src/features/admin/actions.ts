@@ -6,6 +6,7 @@ import { requireAdmin } from '@/server/auth/admin'
 import { encryptText, hmac, normalizePhone } from '@/server/security/crypto'
 import { createAuthServerClient } from '@/server/supabase/server-client'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
+import { INITIAL_TEXT_LIMIT } from '@/features/order/domain/order'
 import { z } from 'zod'
 
 function value(formData: FormData, key: string) {
@@ -142,7 +143,7 @@ const adminOrderItemUpdateSchema = z.object({
   orderId: z.uuid(),
   orderItemId: z.uuid(),
   selectedOptionValueIds: z.array(z.uuid()).max(30),
-  initialText: z.string().trim().max(40).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 20, '이니셜은 공백 제외 20자까지 입력할 수 있습니다.'),
+  initialText: z.string().trim().max(40).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= INITIAL_TEXT_LIMIT, `이니셜은 공백 제외 ${INITIAL_TEXT_LIMIT}자까지 입력할 수 있습니다.`),
   stickerSelected: z.boolean(),
   stickerCategories: z.string().trim().max(200),
   extraRequest: z.string().trim().max(300),
@@ -151,7 +152,7 @@ const adminOrderItemUpdateSchema = z.object({
 function orderItemUpdateError(message: string) {
   if (message.includes('ORDER_ITEM_NOT_EDITABLE')) return '출고 완료 또는 취소된 주문의 제작 정보는 수정할 수 없습니다.'
   if (message.includes('INVALID_OPTION')) return '상품 옵션 선택 조건을 확인해주세요.'
-  if (message.includes('INVALID_INITIAL')) return '이니셜은 영문 대·소문자로 공백 제외 20자까지 입력해주세요.'
+  if (message.includes('INVALID_INITIAL')) return `이니셜은 영문 대·소문자로 공백 제외 ${INITIAL_TEXT_LIMIT}자까지 입력해주세요.`
   if (message.includes('ORDER_ITEM_NOT_FOUND') || message.includes('PRODUCT_NOT_FOUND')) return '수정할 상품 정보를 찾지 못했습니다.'
   return '상품별 제작 정보를 수정하지 못했습니다.'
 }

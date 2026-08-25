@@ -18,14 +18,14 @@ const validOrder = {
 describe('order validation', () => {
   it('상품별 커스텀 주문을 허용한다', () => expect(orderFormSchema.safeParse(validOrder).success).toBe(true))
   it('가방에는 옵션 그룹이 없어도 된다', () => expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], productId: products[1].id, itemType: 'bag', selectedOptionValueIds: [] }] }).success).toBe(true))
-  it('이니셜은 공백 제외 영문 20자까지만 허용한다', () => {
-    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKLMNOPQRST' }] }).success).toBe(true)
-    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKLMNOPQRSTU' }] }).success).toBe(false)
+  it('이니셜은 공백 제외 영문 12자까지만 허용한다', () => {
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKL' }] }).success).toBe(true)
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKLM' }] }).success).toBe(false)
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: '안녕' }] }).success).toBe(false)
   })
-  it('이니셜 입력 단계에서 공백 제외 20자를 넘는 문자를 제거한다', () => {
-    expect(limitInitialTextInput('ABCDEFGHIJKLMNOPQRSTU')).toBe('ABCDEFGHIJKLMNOPQRST')
-    expect(limitInitialTextInput('ABCDE FGHIJ KLMNO PQRST U').replaceAll(' ', '')).toBe('ABCDEFGHIJKLMNOPQRST')
+  it('이니셜 입력 단계에서 공백 제외 12자를 넘는 문자를 제거한다', () => {
+    expect(limitInitialTextInput('ABCDEFGHIJKLM')).toBe('ABCDEFGHIJKL')
+    expect(limitInitialTextInput('ABC DEF GHI JKL M').replaceAll(' ', '')).toBe('ABCDEFGHIJKL')
   })
   it('배송과 픽업 조건을 구분한다', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, fulfillmentType: 'pickup', postalCode: '', address: '', addressDetail: '' }).success).toBe(true)

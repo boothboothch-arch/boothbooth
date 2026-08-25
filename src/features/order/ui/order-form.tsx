@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
+  INITIAL_TEXT_LIMIT,
   itemPrice,
   limitInitialTextInput,
   orderTotals,
@@ -805,7 +806,7 @@ export function OrderForm({
                           aria-required="true"
                           maxLength={40}
                           autoCapitalize="off"
-                          placeholder="영문 대·소문자, 공백 제외 최대 20자"
+                          placeholder={`영문 대·소문자, 공백 제외 최대 ${INITIAL_TEXT_LIMIT}자`}
                           onInput={(event) => {
                             event.currentTarget.value = limitInitialTextInput(
                               event.currentTarget.value,
@@ -819,7 +820,7 @@ export function OrderForm({
                             (current.initialText ?? "").replaceAll(" ", "")
                               .length
                           }
-                          /20자
+                          /{INITIAL_TEXT_LIMIT}자
                         </span>
                       </Field>
                     )}

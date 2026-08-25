@@ -3,6 +3,7 @@ export type FulfillmentType = 'shipping' | 'pickup'
 export type CashReceiptType = 'none' | 'personal' | 'business'
 export type DeliveryZone = 'standard' | 'remote'
 export type PostalCodeRange = { name: string; start: string; end: string }
+export const INITIAL_TEXT_LIMIT = 12
 
 export type ProductOptionValue = { id: string; label: string; priceDelta: number; sortOrder: number; active: boolean }
 export type ProductOptionGroup = {
@@ -133,7 +134,7 @@ export function limitInitialTextInput(value: string) {
   let result = ''
   for (const character of value) {
     if (character !== ' ') {
-      if (nonSpaceCount >= 20) continue
+      if (nonSpaceCount >= INITIAL_TEXT_LIMIT) continue
       nonSpaceCount += 1
     }
     if (result.length >= 40) break

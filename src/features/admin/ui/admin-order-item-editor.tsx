@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, ExternalLink, History, Pencil, Save, ShoppingBag, Shirt, X } from 'lucide-react'
 import { updateOrderItemAction } from '@/features/admin/actions'
-import { limitInitialTextInput, type OrderItemView, type OrderView, type ProductConfig } from '@/features/order/domain/order'
+import { INITIAL_TEXT_LIMIT, limitInitialTextInput, type OrderItemView, type OrderView, type ProductConfig } from '@/features/order/domain/order'
 import { Button } from '@/shared/ui/button'
 
 type ChangeLog = {
@@ -116,7 +116,7 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
               </div>}
             </div>
           })}
-          {product.customization.initialEnabled && <div className="field field--full"><label>이니셜</label><input name="initialText" maxLength={40} value={initialText} onChange={(event) => setInitialText(limitInitialTextInput(event.target.value))} placeholder="영문, 공백 제외 최대 20자" /><span className="field__hint">공백 제외 {initialText.replaceAll(' ', '').length}/20자</span></div>}
+          {product.customization.initialEnabled && <div className="field field--full"><label>이니셜</label><input name="initialText" maxLength={40} value={initialText} onChange={(event) => setInitialText(limitInitialTextInput(event.target.value))} placeholder={`영문, 공백 제외 최대 ${INITIAL_TEXT_LIMIT}자`} /><span className="field__hint">공백 제외 {initialText.replaceAll(' ', '').length}/{INITIAL_TEXT_LIMIT}자</span></div>}
           {!product.customization.initialEnabled && <input type="hidden" name="initialText" value={initialText} />}
           {product.customization.stickerEnabled && <div className="field field--full"><label>랜덤 이니셜 스티커</label><select value={stickerSelected ? 'selected' : 'unselected'} onChange={(event) => { const next = event.target.value === 'selected'; setStickerSelected(next); if (!next) setStickerCategories('') }}><option value="unselected">미선택</option><option value="selected">선택</option></select></div>}
           {product.customization.stickerEnabled && stickerSelected && <div className="field field--full"><label>원하는 스티커 카테고리</label><input name="stickerCategories" maxLength={200} value={stickerCategories} onChange={(event) => setStickerCategories(event.target.value)} /></div>}
