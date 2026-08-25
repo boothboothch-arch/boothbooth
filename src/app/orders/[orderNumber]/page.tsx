@@ -15,5 +15,5 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
   if (!verifyOrderAccessToken(token, orderNumber)) redirect('/order/lookup')
   const order = await getOrderByNumber(orderNumber)
   if (!order) redirect('/order/lookup')
-  return <PageShell><div className="page-wrap page-wrap--wide"><div className="page-heading"><Badge tone="green">MY ORDER</Badge><h1>주문 상세</h1><p>입금과 제작·수령 상태를 확인하세요. 주문 정보는 입금 확인 전까지 수정할 수 있어요.</p></div><OrderDetail initialOrder={order} /></div></PageShell>
+  return <PageShell><div className="page-wrap page-wrap--wide"><div className="page-heading"><Badge tone="green">MY ORDER</Badge><h1>주문 상세</h1><p>입금과 제작·출고 상태를 확인하세요. 주문 정보는 제작 시작 전까지 수정할 수 있어요.</p></div><OrderDetail initialOrder={order} /></div></PageShell>
 }

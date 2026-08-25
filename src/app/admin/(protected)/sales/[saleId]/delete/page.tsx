@@ -47,7 +47,7 @@ export default async function DeleteSalePage({
         <div><span className="eyebrow">DANGER ZONE · {sale.round_number}TH</span><h1>차수 삭제</h1><p>차수와 연결된 설정·임시 데이터·참고 이미지를 확인한 뒤 안전하게 정리합니다.</p></div>
         <Link className="button button--secondary" href="/admin/sales"><ArrowLeft size={15} /> 차수 목록</Link>
       </div>
-      {query.reset && <div className="notice notice--success">테스트 주문·예약·이메일 대기열·참고 이미지를 초기화했습니다. 안전을 위해 테스트 주문 입장은 중지된 상태입니다.</div>}
+      {query.reset && <div className="notice notice--success">테스트 주문·예약·참고 이미지를 초기화했습니다. 안전을 위해 테스트 주문 입장은 중지된 상태입니다.</div>}
       {query.error && <div className="notice notice--error">처리하지 못했습니다: {query.error}</div>}
 
       <section className="admin-panel deletion-summary">
@@ -62,7 +62,7 @@ export default async function DeleteSalePage({
 
       {sale.sale_kind === 'test' && (summary.orderCount > 0 || summary.reservationCount > 0 || summary.imageCount > 0) && (
         <section className="admin-panel danger-section">
-          <div><h2>테스트 데이터 초기화</h2><p>차수 설정과 상품은 유지하고 테스트 주문, 예약, 배송 정보, 이메일 대기열과 참고 이미지만 영구 삭제합니다. 초기화 후 주문 입장은 자동으로 중지됩니다.</p></div>
+          <div><h2>테스트 데이터 초기화</h2><p>차수 설정과 상품은 유지하고 테스트 주문, 예약, 배송 정보와 참고 이미지만 영구 삭제합니다. 초기화 후 주문 입장은 자동으로 중지됩니다.</p></div>
           <DangerConfirmForm saleId={sale.id} phrase={resetPhrase} mode="reset" />
         </section>
       )}

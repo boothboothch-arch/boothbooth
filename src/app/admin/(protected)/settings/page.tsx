@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ExternalLink, Eye, ListChecks } from 'lucide-react'
+import { ExternalLink, Eye, ListChecks, PackagePlus } from 'lucide-react'
 import { updateSalePublicationAction, updateSettingsAction } from '@/features/admin/actions'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { Button } from '@/shared/ui/button'
@@ -9,29 +9,20 @@ function toKstInput(value: string) {
   return kst.toISOString().slice(0, 16)
 }
 
-type OptionRow = { option_type: string; value: string; sort_order: number; price_delta: number }
-
 export default async function AdminSettingsPage({ searchParams }: { searchParams: Promise<{ saleId?: string; saved?: string; created?: string; error?: string; publicationSaved?: string }> }) {
   const query = await searchParams
   const client = createPrivilegedClient()
   const { data: sales } = await client.from('sales').select('*').order('round_number', { ascending: false })
   const sale = (sales ?? []).find((row) => row.id === query.saleId) ?? sales?.[0] ?? null
   const [{ data: products }, { data: slots }] = sale ? await Promise.all([
-    client.from('products').select('*,product_options(option_type,value,sort_order,price_delta)').eq('sale_id', sale.id).order('created_at'),
+    client.from('products').select('id,name,active').eq('sale_id', sale.id).order('created_at'),
     client.from('pickup_slots').select('*').eq('sale_id', sale.id).order('pickup_date').order('starts_at'),
   ]) : [{ data: [] }, { data: [] }]
-  const shirt = (products ?? []).find((product) => product.item_type === 'shirt')
-  const bag = (products ?? []).find((product) => product.item_type === 'bag')
-  if (!sale || !shirt || !bag) return <div className="admin-panel"><h1>판매 설정을 불러오지 못했습니다.</h1><p>최신 Supabase 마이그레이션 적용 여부와 해당 차수의 티셔츠·가방 상품 데이터를 확인해주세요.</p></div>
-  const options = (Array.isArray(shirt.product_options) ? shirt.product_options : []) as OptionRow[]
-  const sizes = options.filter((item) => item.option_type === 'size').sort((a, b) => a.sort_order - b.sort_order)
-  const genders = options.filter((item) => item.option_type === 'gender').sort((a, b) => a.sort_order - b.sort_order)
-  const twoXlSurcharge = sizes.find((item) => item.value === '2XL')?.price_delta ?? 2000
+  if (!sale) return <div className="admin-panel"><h1>판매 설정을 불러오지 못했습니다.</h1><p>최신 Supabase 마이그레이션 적용 여부를 확인해주세요.</p></div>
   const pickupSlotText = (slots ?? []).map((slot) => `${slot.pickup_date},${String(slot.starts_at).slice(0,5)},${String(slot.ends_at).slice(0,5)}`).join('\n')
   const checklist = [
     { label: '판매 제목과 시작·종료 시간', ready: Boolean(sale.title && Date.parse(sale.starts_at) < Date.parse(sale.ends_at)) },
-    { label: '티셔츠·가방 상품과 가격', ready: Boolean(shirt && bag) },
-    { label: '티셔츠 사이즈·성별 옵션', ready: Boolean(sizes.length && genders.length) },
+    { label: '판매 상품 한 개 이상', ready: Boolean((products ?? []).some((product) => product.active)) },
     { label: '픽업 장소·날짜·시간', ready: Boolean(sale.pickup_name && (slots ?? []).length) },
     { label: '입금 계좌와 카카오톡 채널 주소', ready: Boolean(sale.bank_name && sale.bank_account_ciphertext && sale.bank_holder && sale.kakao_channel_url) },
   ]
@@ -54,10 +45,10 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
         </div>
       </section>
       <form className="admin-panel settings-form" action={updateSettingsAction}>
-        <input type="hidden" name="saleId" value={sale.id} /><input type="hidden" name="shirtId" value={shirt.id} /><input type="hidden" name="bagId" value={bag.id} />
+        <input type="hidden" name="saleId" value={sale.id} />
         <section><h2>판매 운영</h2><div className="form-grid"><div className="field field--full"><label>판매 제목</label><input name="title" defaultValue={sale.title} required /></div><div className="field"><label>시작 시각 (KST)</label><input name="startsAt" type="datetime-local" defaultValue={toKstInput(sale.starts_at)} required /></div><div className="field"><label>종료 시각 (KST)</label><input name="endsAt" type="datetime-local" defaultValue={toKstInput(sale.ends_at)} required /></div><div className="field"><label>주문서 접수 한도</label><input name="orderLimit" type="number" min="1" defaultValue={sale.order_limit} required /><span className="field__hint">상품 수가 아닌 주문 건수 기준입니다.</span></div><div className="field field--full"><label>운영 메모</label><textarea name="internalNote" defaultValue={sale.internal_note} placeholder="관리자에게만 표시되는 메모" /></div><label className="checkbox admin-switch"><input name="manuallyClosed" type="checkbox" defaultChecked={sale.manually_closed} /><span><strong>신규 주문서 입장 일시 중지</strong><br />기존 작성자는 남은 시간 동안 제출할 수 있습니다.</span></label></div></section>
-        <section><h2>상품과 옵션</h2><div className="form-grid"><div className="field"><label>티셔츠 상품명</label><input name="shirtName" defaultValue={shirt.name} required /></div><div className="field"><label>티셔츠 가격</label><input name="shirtPrice" type="number" min="0" step="100" defaultValue={shirt.unit_price} required /></div><div className="field"><label>가방 상품명</label><input name="bagName" defaultValue={bag.name} required /></div><div className="field"><label>가방 가격</label><input name="bagPrice" type="number" min="0" step="100" defaultValue={bag.unit_price} required /></div><div className="field"><label>티셔츠 사이즈 (쉼표 구분)</label><input name="sizes" defaultValue={sizes.map((item) => item.value).join(', ')} required /></div><div className="field"><label>티셔츠 성별 (쉼표 구분)</label><input name="genders" defaultValue={genders.map((item) => item.value).join(', ')} required /></div><div className="field"><label>2XL 추가금</label><input name="twoXlSurcharge" type="number" min="0" step="100" defaultValue={twoXlSurcharge} required /></div></div></section>
-        <section><h2>배송과 픽업</h2><div className="form-grid"><div className="field"><label>기본 배송비</label><input name="shippingFee" type="number" min="0" step="100" defaultValue={sale.shipping_fee} required /></div><div className="field"><label>무료배송 기준</label><input name="freeShippingThreshold" type="number" min="0" step="1000" defaultValue={sale.free_shipping_threshold} required /></div><div className="field"><label>픽업 장소명</label><input name="pickupName" defaultValue={sale.pickup_name} required /></div><div className="field"><label>픽업 주소</label><input name="pickupAddress" defaultValue={sale.pickup_address} /></div><div className="field field--full"><label>픽업 안내</label><textarea name="pickupNotice" defaultValue={sale.pickup_notice} /></div><div className="field field--full"><label>픽업 날짜와 시간</label><textarea name="pickupSlots" className="code-textarea" defaultValue={pickupSlotText} placeholder={'2026-09-05,11:00,13:00\n2026-09-05,13:00,15:00'} /><span className="field__hint">한 줄에 날짜,시작,종료 순서로 입력합니다. 인원 제한은 없으며 행을 삭제하면 해당 시간이 마감됩니다.</span></div></div></section>
+        <section><h2>상품과 옵션</h2><div className="settings-product-summary"><div><strong>등록 상품 {(products ?? []).length}개</strong><span>활성 상품 {(products ?? []).filter((product) => product.active).length}개</span></div><Link className="button button--secondary" href={`/admin/sales/${sale.id}/products`}><PackagePlus size={15} /> 상품 관리 열기</Link></div><p className="field__hint">상품명, 가격, 한정 수량, 주문 입력 항목과 옵션 그룹은 상품 관리에서 설정합니다.</p></section>
+        <section><h2>배송과 픽업</h2><div className="form-grid"><div className="field"><label>기본 배송비</label><input name="shippingFee" type="number" min="0" step="100" defaultValue={sale.shipping_fee} required /></div><div className="field"><label>무료배송 기준</label><input name="freeShippingThreshold" type="number" min="0" step="1000" defaultValue={sale.free_shipping_threshold} required /></div><div className="field"><label>제주·도서산간 추가 배송비</label><input name="remoteAreaSurcharge" type="number" min="0" step="100" defaultValue={sale.remote_area_surcharge ?? 3000} required /><span className="field__hint">무료배송 기준을 충족해도 해당 지역에는 이 금액이 추가됩니다.</span></div><div className="field"><label>픽업 장소명</label><input name="pickupName" defaultValue={sale.pickup_name} required /></div><div className="field"><label>픽업 주소</label><input name="pickupAddress" defaultValue={sale.pickup_address} /></div><div className="field field--full"><label>픽업 안내</label><textarea name="pickupNotice" defaultValue={sale.pickup_notice} /></div><div className="field field--full"><label>픽업 날짜와 시간</label><textarea name="pickupSlots" className="code-textarea" defaultValue={pickupSlotText} placeholder={'2026-09-05,11:00,13:00\n2026-09-05,13:00,15:00'} /><span className="field__hint">한 줄에 날짜,시작,종료 순서로 입력합니다. 인원 제한은 없으며 행을 삭제하면 해당 시간이 마감됩니다.</span></div></div></section>
         <section><h2>입금 및 안내</h2><div className="form-grid"><div className="field"><label>은행</label><input name="bankName" defaultValue={sale.bank_name} required /></div><div className="field"><label>예금주</label><input name="bankHolder" defaultValue={sale.bank_holder} required /></div><div className="field field--full"><label>계좌번호</label><input name="bankAccount" placeholder="변경할 때만 새 계좌번호 입력" /><span className="field__hint">저장된 계좌번호는 암호화되어 다시 표시하지 않습니다.</span></div><div className="field field--full"><label>카카오톡 비즈니스 채널 URL</label><input name="kakaoChannelUrl" type="url" defaultValue={sale.kakao_channel_url} required /></div><div className="field field--full"><label>배송·제작 안내</label><textarea name="shippingNotice" defaultValue={sale.shipping_notice} /></div></div></section>
         <div className="form-actions"><Button type="submit">판매 설정 저장</Button></div>
       </form>

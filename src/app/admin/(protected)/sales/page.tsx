@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, CopyPlus, ExternalLink, Eye, Settings, Trash2 } from 'lucide-react'
+import { ArrowRight, CopyPlus, ExternalLink, Eye, PackagePlus, Settings, Trash2 } from 'lucide-react'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { Badge } from '@/shared/ui/badge'
 
@@ -67,7 +67,7 @@ export default async function AdminSalesPage({ searchParams }: { searchParams: P
                 <td>{new Date(sale.starts_at).toLocaleString('ko-KR')}<small>~ {new Date(sale.ends_at).toLocaleString('ko-KR')}</small></td>
                 <td>{activeOrders} / {sale.order_limit}건<small>작성 중 {activeReservations}명</small></td>
                 <td>{sale.internal_note || '-'}</td>
-                <td><div className="admin-row-actions">{sale.sale_kind === 'test' && <Link href={`/test/${sale.id}`} target="_blank"><ExternalLink size={14} /> 테스트</Link>}<Link href={`/admin/sales/${sale.id}/preview`}><Eye size={14} /> 미리보기</Link><Link href={`/admin/settings?saleId=${sale.id}`}><Settings size={14} /> 설정</Link><Link href={`/admin/orders?saleId=${sale.id}`}>주문 <ArrowRight size={14} /></Link><Link className="text-danger" href={`/admin/sales/${sale.id}/delete`}><Trash2 size={14} /> 삭제</Link></div></td>
+                <td><div className="admin-row-actions">{sale.sale_kind === 'test' && <Link href={`/test/${sale.id}`} target="_blank"><ExternalLink size={14} /> 테스트</Link>}<Link href={`/admin/sales/${sale.id}/preview`}><Eye size={14} /> 미리보기</Link><Link href={`/admin/sales/${sale.id}/products`}><PackagePlus size={14} /> 상품</Link><Link href={`/admin/settings?saleId=${sale.id}`}><Settings size={14} /> 설정</Link><Link href={`/admin/orders?saleId=${sale.id}`}>주문 <ArrowRight size={14} /></Link><Link className="text-danger" href={`/admin/sales/${sale.id}/delete`}><Trash2 size={14} /> 삭제</Link></div></td>
               </tr>
             })}</tbody>
           </table>

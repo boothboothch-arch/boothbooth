@@ -11,26 +11,17 @@ export const orderItemSchema = z.object({
   clientId: z.uuid(),
   productId: databaseId,
   itemType: z.enum(['shirt', 'bag']),
-  size: z.string().trim().max(30),
-  gender: z.string().trim().max(30),
-  initialText: z.string().trim().regex(/^[A-Za-z ]+$/, '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 10, '이니셜은 공백 제외 10자까지 입력할 수 있어요.'),
+  selectedOptionValueIds: z.array(z.uuid()).max(30),
+  initialText: z.string().trim().max(20).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 10, '이니셜은 공백 제외 10자까지 입력할 수 있어요.'),
   stickerSelected: z.boolean(),
   stickerCategories: z.string().trim().max(200),
-  favoriteColors: optionalNote,
-  favoriteThings: optionalNote,
-  desiredMood: optionalNote,
-  instagramReference: optionalNote,
   extraRequest: optionalNote,
   images: z.array(z.uuid()).max(3, '상품 하나에 이미지는 최대 3장까지 첨부할 수 있어요.'),
-}).superRefine((item, context) => {
-  if (item.itemType === 'shirt' && !item.size) context.addIssue({ code: 'custom', path: ['size'], message: '사이즈를 선택해주세요.' })
-  if (item.itemType === 'shirt' && !item.gender) context.addIssue({ code: 'custom', path: ['gender'], message: '성별을 선택해주세요.' })
 })
 
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(2, '이름을 입력해주세요.').max(50),
   phone: z.string().regex(/^01[016789]-?\d{3,4}-?\d{4}$/, '휴대전화 번호를 확인해주세요.'),
-  email: z.email('이메일 주소를 확인해주세요.').max(254),
   depositorName: z.string().trim().min(2, '입금자명을 입력해주세요.').max(50),
   fulfillmentType: z.enum(['shipping', 'pickup']),
   postalCode: z.string().trim().max(10),
@@ -45,7 +36,7 @@ export const orderFormSchema = z.object({
   website: z.string().max(0).optional(),
 }).superRefine((value, context) => {
   if (value.fulfillmentType === 'shipping') {
-    if (value.postalCode.length < 3) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 입력해주세요.' })
+    if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })
     if (!value.addressDetail) context.addIssue({ code: 'custom', path: ['addressDetail'], message: '상세 주소를 입력해주세요.' })
   } else if (!z.uuid().safeParse(value.pickupSlotId).success) {
@@ -75,7 +66,7 @@ export const customerOrderUpdateSchema = z.object({
   items: z.array(orderItemSchema.omit({ clientId: true, images: true }).extend({ id: z.uuid() })).min(1),
 }).superRefine((value, context) => {
   if (value.fulfillmentType === 'shipping') {
-    if (value.postalCode.length < 3) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 입력해주세요.' })
+    if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })
     if (!value.addressDetail) context.addIssue({ code: 'custom', path: ['addressDetail'], message: '상세 주소를 입력해주세요.' })
   } else if (!z.uuid().safeParse(value.pickupSlotId).success) context.addIssue({ code: 'custom', path: ['pickupSlotId'], message: '픽업 일정을 선택해주세요.' })

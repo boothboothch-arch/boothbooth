@@ -22,12 +22,10 @@
 | 웹 프레임워크 | Next.js App Router fullstack | Server Component, Server Action, Route Handler |
 | 배포·서버 런타임 | Vercel | CDN, SSR, Vercel Functions, 도메인 |
 | 데이터베이스 | Supabase Postgres | 주문·예약·설정 데이터, 트랜잭션, 제약조건 |
-| 백엔드 API | Next.js Route Handlers on Vercel Functions | 예약·주문·관리·이메일 API |
+| 백엔드 API | Next.js Route Handlers on Vercel Functions | 예약·주문·관리 API |
 | 관리자 인증 | Supabase Auth | 관리자 이메일·비밀번호 로그인 |
 | DB 접근 | `@supabase/supabase-js`, `@supabase/ssr` | 서버 DB 접근과 관리자 SSR 세션 |
 | 스키마 관리 | Supabase CLI migrations | DB 함수, 테이블, 인덱스, RLS 버전 관리 |
-| 정기 작업 | Supabase Cron (`pg_cron`) | 예약 정리, 이메일 outbox worker 호출 |
-| 이메일 | Resend | 주문·입금·취소·배송 이메일 |
 | 주소 검색 | Kakao 우편번호 서비스 | 국내 우편번호 및 주소 검색 |
 | 파일 저장 | Supabase Storage private bucket | 상품별 디자인 참고 이미지 |
 | 이미지 처리 | 브라우저 기반 리사이즈·형식 변환 | iPhone HEIC/HEIF 포함 모바일 업로드 최적화 |
@@ -57,10 +55,6 @@ flowchart LR
   U --> STORAGE["Supabase Storage · private"]
   VF --> STORAGE
   CRON["Supabase Cron"] --> DB
-  DB --> OUTBOX["Email outbox"]
-  CRON --> W["Vercel email-worker Route Handler"]
-  OUTBOX --> W
-  W --> MAIL["Resend"]
 ```
 
 ### 리전
@@ -81,13 +75,12 @@ flowchart LR
 
 ### 무료 요금제 전제와 출시 제약
 
-- 개발·QA는 Vercel Hobby, Supabase Free, Resend Free를 기준으로 한다.
+- 개발·QA는 Vercel Hobby와 Supabase Free를 기준으로 한다.
 - Vercel Hobby는 공식 정책상 비상업적 개인 사용만 허용한다. 상품 판매와 입금 요청은 상업적 사용에 해당하므로 실제 판매 배포 전 Vercel Pro 전환 또는 상업적 무료 사용을 허용하는 다른 정적 호스팅 검토가 필요하다.
 - Supabase Free는 7일간 활동이 적으면 프로젝트가 일시 정지될 수 있다. 판매 최소 1주 전부터 활성 상태를 점검한다.
 - Supabase Free에는 관리형 일일 백업이 없다. 판매 전후 `supabase db dump`로 별도 백업한다.
 - Vercel Hobby는 월 1,000,000 Function 호출을 포함하지만 500명 동시 burst에 대한 성능 보장은 없다. 로컬 동시성 테스트와 실제 환경 사전 리허설이 필요하다.
 - Supabase Realtime 무료 동시 연결 한도는 200이므로 500명 대상 실시간 연결은 사용하지 않고 공개 RPC 폴링을 사용한다.
-- Resend Free는 하루 100통이므로 100건의 접수 이메일만으로 일일 한도를 모두 사용한다. 같은 날 입금 확인·취소 이메일까지 발송하려면 Resend 유료 전환이 필요하다.
 - 무료 한도 초과 시 유료 초과분이 자동 청구되는 대신 서비스가 제한될 수 있다.
 
 ## 4. Next.js 애플리케이션 구조
@@ -99,7 +92,7 @@ src/
 │   ├── order/                           # 주문서·완료·조회 인증
 │   ├── orders/[orderNumber]/page.tsx    # 고객 주문 상세/수정
 │   ├── admin/                           # 로그인 및 보호된 운영 화면
-│   └── api/                             # 공개·주문·관리·내부 워커 API
+│   └── api/                             # 공개·주문·관리 API
 ├── features/
 │   ├── sale/                            # 판매 도메인과 UI
 │   ├── order/                           # 주문 스키마·도메인·UI
@@ -109,7 +102,6 @@ src/
 │   └── ui/                              # 디자인 시스템 기본 컴포넌트
 ├── server/
 │   ├── auth/                            # 관리자 인증
-│   ├── email/                           # 이메일 렌더링
 │   ├── orders/                          # 주문 조회 조립
 │   ├── security/                        # 암호화·HMAC·접근 토큰
 │   └── supabase/                        # SSR·브라우저·service-role 클라이언트
@@ -181,7 +173,7 @@ type ApiError = {
 - 이름 예시: `bb_reservation`
 - `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`
 - 예약 토큰 원문은 DB에 저장하지 않고 해시만 저장한다.
-- 최대 수명은 20분이다.
+- 최대 수명은 30분이다.
 
 #### 주문 조회 접근 쿠키
 
@@ -201,7 +193,6 @@ sale_state       = scheduled | open | manually_closed | ended
 reservation_state = active | converted | released | expired
 order_state      = payment_pending | payment_confirmed | preparing | completed | cancelled
 payment_state    = pending | review_required | paid | refund_required | refunded
-email_state      = pending | processing | sent | failed
 ```
 
 ### sales
@@ -219,6 +210,9 @@ email_state      = pending | processing | sent | failed
 | bank_holder | text | 예금주 |
 | kakao_channel_url | text | 문의 링크 |
 | shipping_notice | text | 배송 안내 |
+| shipping_fee | integer | 무료배송 기준 미만 기본 배송비 |
+| free_shipping_threshold | integer | 기본 배송비 무료 기준 |
+| remote_area_surcharge | integer | 제주·도서산간 추가 배송비 |
 | created_at / updated_at | timestamptz | 변경 시각 |
 
 - DB에는 UTC 기반 `timestamptz`로 저장하고 UI에서 Asia/Seoul로 표시한다.
@@ -231,17 +225,19 @@ email_state      = pending | processing | sent | failed
 | id | uuid PK | 상품 ID |
 | sale_id | uuid FK | 판매 |
 | name | text | 상품명 |
+| description | text | 고객 노출 상품 설명 |
 | unit_price | integer | 원 단위 가격 |
 | item_type | text | shirt 또는 bag |
+| stock_limit | integer nullable | null이면 무제한 |
+| sort_order | integer | 노출 순서 |
+| option_groups | jsonb | 옵션 그룹과 선택값 설정 |
+| customization_config | jsonb | 주문 입력 항목 활성화 설정 |
 | active | boolean | 판매 노출 여부 |
 
 ### product_options
 
-- `id`, `product_id`, `option_type`, `value`, `sort_order`, `active`
-- 초기 `option_type`: 티셔츠의 `size`, `gender`
-- 옵션에는 `price_delta`를 두고 2XL에 2,000원을 적용한다.
-- 가방에는 사이즈·성별 옵션을 연결하지 않는다.
-- 색상 옵션은 사용하지 않는다.
+- 기존 데이터 마이그레이션 호환용 테이블이다. 운영 설정은 `products.option_groups`가 기준이다.
+- 그룹과 선택값은 UUID 식별자를 가지며 이름, 선택 규칙, 추가금, 순서, 활성 상태를 JSON으로 저장한다.
 
 ### reservations
 
@@ -251,7 +247,7 @@ email_state      = pending | processing | sent | failed
 | sale_id | uuid FK | 판매 |
 | token_hash | text UNIQUE | 쿠키 토큰 해시 |
 | state | reservation_state | 예약 상태 |
-| hard_expires_at | timestamptz | 입장 후 20분 |
+| hard_expires_at | timestamptz | 입장 후 30분 |
 | lease_expires_at | timestamptz | heartbeat 단절 감지 |
 | last_activity_at | timestamptz | 클라이언트 활동 보고 |
 | converted_order_id | uuid nullable | 생성 주문 |
@@ -275,13 +271,14 @@ email_state      = pending | processing | sent | failed
 | phone_encrypted | text | 원본 전화번호 |
 | phone_normalized_hash | text | 중복 검사 |
 | phone_last4_hash | text | 주문 조회 검증 |
-| email_encrypted | text | 원본 이메일 |
-| email_normalized_hash | text | 중복 검사 |
 | depositor_name | text | 입금자명 |
 | address_json | jsonb | 우편번호·주소 |
 | total_quantity | integer | 주문 상품 수, 상한 없음 |
 | subtotal_amount | integer | 옵션 추가금을 포함한 상품 합계 |
-| shipping_fee | integer | 택배 3,000원 또는 무료 |
+| base_shipping_fee | integer | 주문 시점 기본 배송비 |
+| remote_area_surcharge | integer | 주문 시점 제주·도서산간 추가 배송비 |
+| shipping_fee | integer | 기본 배송비와 지역 추가 배송비 합계 |
+| delivery_zone | text | standard 또는 remote |
 | total_amount | integer | 최종 입금액 |
 | fulfillment_type | text | shipping 또는 pickup |
 | pickup_slot_id | uuid nullable | 픽업 선택 시 시간대 |
@@ -301,19 +298,17 @@ email_state      = pending | processing | sent | failed
 - `total_quantity >= 1`
 - `total_amount >= 0`
 - 배송 선택 시 주소 필수, 픽업 선택 시 픽업 시간대 필수
-- 취소되지 않은 주문에 대해 `phone_normalized_hash` partial unique index
-- 취소되지 않은 주문에 대해 `email_normalized_hash` partial unique index
 - `reservation_id` unique
 
-개인정보 중복 확인에는 평문 대신 서버 비밀키를 이용한 HMAC 값을 사용한다. 일반적인 단순 SHA 해시는 전화번호처럼 값의 범위가 작은 데이터에 적합하지 않다.
+전화번호 검색과 주문 조회 인증에는 평문 대신 서버 비밀키를 이용한 HMAC 값을 사용한다. 일반적인 단순 SHA 해시는 전화번호처럼 값의 범위가 작은 데이터에 적합하지 않다.
 
 ### order_items
 
 - `id`, `order_id`, `product_id`, `item_type`, `sort_order`
 - 주문 시점의 `product_name`, `unit_price`, `option_surcharge`, `line_amount`
-- 티셔츠는 `size`, `gender`를 저장하고 가방은 두 값을 null로 저장한다.
+- `selected_options jsonb`에 그룹명, 선택값명, 추가금을 주문 시점 스냅샷으로 저장한다.
 - `initial_text`, `sticker_selected`, `sticker_categories text[]`
-- `favorite_colors`, `favorite_things`, `desired_mood`, `instagram_reference`, `extra_request`
+- `extra_request`
 - 실제 제작물 한 개를 행 한 개로 저장하며 `quantity`로 합치지 않는다.
 - 상품·옵션 변경과 무관하게 과거 주문을 보존한다.
 
@@ -334,15 +329,6 @@ email_state      = pending | processing | sent | failed
 
 - `order_id unique`, `carrier_code`, `carrier_name`, `tracking_number`
 - `shipped_at`, `completed_at`, `created_at`, `updated_at`
-
-### email_outbox
-
-- `id`, `order_id`, `event_type`, `dedupe_key unique`
-- `recipient_encrypted`, `payload_json`
-- `state`, `attempt_count`, `next_attempt_at`, `last_error`
-- `created_at`, `sent_at`
-
-상태 변경 트랜잭션에서 outbox 레코드를 함께 생성해 이메일 이벤트 유실을 막는다.
 
 ## 8. 원자적 선착순 처리
 
@@ -367,7 +353,7 @@ email_state      = pending | processing | sent | failed
 3. 판매 활성화, 시작·종료 시각, 수동 마감 상태를 검사한다.
 4. 취소되지 않은 주문 수와 유효 예약 수를 계산한다.
 5. 합계가 접수 한도보다 작을 때만 예약을 생성한다.
-6. `hard_expires_at = now() + 20 minutes`로 설정한다.
+6. `hard_expires_at = now() + 30 minutes`로 설정한다.
 7. 예약 정보를 반환하고 트랜잭션을 커밋한다.
 
 모든 슬롯 변경 RPC가 같은 `sales` 행 잠금 순서를 사용한다. 판매당 한 행을 동시성 직렬화 지점으로 사용하므로 여러 Vercel 인스턴스에서도 한도를 초과하지 않는다.
@@ -390,12 +376,10 @@ email_state      = pending | processing | sent | failed
 2. 동일 idempotency key 또는 이미 전환된 예약이면 기존 결과를 반환한다.
 3. 예약의 active 상태, hard expiry, lease expiry를 검증한다.
 4. 입력값, 상품별 커스텀 정보, 이미지 수와 최소 상품 수를 다시 검증한다.
-5. 정규화한 휴대전화·이메일 HMAC로 중복 주문을 검사한다.
-6. 충분히 긴 무작위 주문번호를 생성한다.
-7. 서버의 상품 가격과 배송비 정책으로 금액을 계산하고 주문·항목·이미지 연결 정보를 삽입한다.
-8. 예약을 `converted`로 전환한다.
-9. 주문 접수 이메일 outbox를 삽입한다.
-10. 주문번호 `BB-XXXXXXXXXX`와 완료 화면에 필요한 최소 정보를 반환한다.
+5. 충분히 긴 무작위 주문번호를 생성한다.
+6. 서버가 우편번호 추가배송 범위, 상품 가격과 배송비 정책으로 기본 배송비·지역 추가 배송비를 계산하고 주문·항목·이미지 연결 정보를 삽입한다.
+7. 예약을 `converted`로 전환한다.
+8. 주문번호 `BB-XXXXXXXXXX`와 완료 화면에 필요한 최소 정보를 반환한다.
 
 ### 8.5 취소와 복구 RPC
 
@@ -403,7 +387,6 @@ email_state      = pending | processing | sent | failed
 - 주문 취소는 관리자 작업으로만 실행하며 취소 사유에 `미입금`을 포함할 수 있다.
 - 취소 후 판매가 기간 내이며 수동 마감이 아니면 반환 슬롯은 자동으로 공개된다.
 - 복구는 현재 주문과 예약 수를 다시 검사하며, 한도 이상이면 실패한다.
-- 복구 성공 시 중복 전화·이메일 제약도 다시 만족해야 한다.
 - 복구로 충돌하는 신규 주문이 있으면 관리자에게 정확한 충돌 사유를 표시한다.
 
 ## 9. 판매 상태 갱신 전략
@@ -443,31 +426,20 @@ email_state      = pending | processing | sent | failed
 ## 11. RLS 및 데이터 노출
 
 - 모든 업무 테이블에 RLS를 활성화한다.
-- `anon` 역할에는 주문, 예약, 계좌, 이메일 outbox 테이블의 직접 조회·변경 권한을 주지 않는다.
+- `anon` 역할에는 주문, 예약, 계좌 테이블의 직접 조회·변경 권한을 주지 않는다.
 - 관리자 authenticated 역할에는 `is_admin()` 조건을 적용한다.
 - 원자적 DB 함수는 최소 범위의 `security definer`를 사용할 수 있다.
 - `security definer` 함수는 빈 `search_path`와 완전한 스키마 이름을 사용한다.
 - 각 함수의 execute 권한은 필요한 백엔드 역할에만 명시적으로 부여한다.
 - 공개 판매 상태는 개인정보를 포함하지 않는 전용 함수만 노출한다.
 
-## 12. 예약 정리와 이메일 처리
+## 12. 예약 정리
 
 ### Supabase Cron
 
-- 만료된 예약을 정리하고 이메일 outbox worker를 호출하는 용도로만 사용한다.
+- 만료된 예약을 정리하는 용도로 사용한다.
 - `payment_due_at`이 지난 주문은 변경하지 않고 관리자 조회용 `입금 기한 경과` 조건으로만 사용한다.
 - 미입금 주문은 관리자가 확인한 뒤 수동 취소한다.
-- 수동 취소와 취소 이메일 outbox 생성을 같은 트랜잭션에서 처리한다.
-
-### 이메일 outbox worker
-
-- 이메일 발송 공급자는 Resend로 확정한다.
-- Supabase Cron이 보호된 `/api/internal/email-worker` Route Handler를 호출해 pending outbox를 처리한다.
-- Cron 호출용 공유 비밀은 Supabase Vault와 Vercel 환경변수에 저장한다.
-- worker는 `FOR UPDATE SKIP LOCKED`로 발송 대상을 가져와 중복 처리를 방지한다.
-- 공급자 idempotency key에는 `email_outbox.dedupe_key`를 사용한다.
-- 실패 시 지수 백오프로 재시도하고, 최대 횟수 이후 `failed`로 남긴다.
-- 관리자는 실패 이메일을 재시도할 수 있다.
 
 ## 13. 환경변수
 
@@ -482,9 +454,6 @@ NEXT_PUBLIC_KAKAO_POSTCODE_ENABLED=true
 SUPABASE_SECRET_KEY=
 PII_HMAC_SECRET=
 ORDER_ACCESS_SIGNING_SECRET=
-CRON_SHARED_SECRET=
-RESEND_API_KEY=
-EMAIL_FROM=
 ```
 
 - 신규 Supabase 프로젝트에서는 기존 `anon`/`service_role` 대신 publishable/secret 키를 우선한다.
@@ -501,13 +470,6 @@ EMAIL_FROM=
 - 국내 휴대전화 번호 규칙을 검증한다.
 - 중복 비교용 HMAC과 주문 조회용 뒷자리 HMAC을 서버에서 생성한다.
 
-### 이메일
-
-- 앞뒤 공백 제거
-- 전체 소문자 정규화
-- 최대 길이 제한
-- 표준적인 이메일 형식 검증
-
 ### 주소
 
 - 우편번호, 기본 주소, 상세 주소를 분리한다.
@@ -519,11 +481,11 @@ EMAIL_FROM=
 
 - DB에 활성 상태로 존재하는 옵션만 허용한다.
 - 주문 항목은 최소 1개이며 전체 수량 상한은 두지 않는다.
-- 티셔츠는 사이즈·성별이 필수이고 가방에는 해당 값을 허용하지 않는다.
+- 상품의 활성 옵션 그룹별 필수·최소·최대 선택 규칙을 검증한다.
 - 이니셜은 영문 대·소문자와 내부 공백만 허용하고 공백 제외 10자로 제한한다.
 - 스티커 카테고리는 선택 사항이며 3~5개 권장은 UI 안내로만 적용한다.
 - 클라이언트가 전송한 가격은 사용하지 않고 서버가 DB 가격으로 재계산한다.
-- 2XL은 현재 설정된 추가금 2,000원을 적용한다.
+- 활성 선택값의 추가금을 합산하며, 옵션 가격은 서버의 현재 상품 설정을 사용한다.
 - 택배는 상품 합계 80,000원 이상 무료, 그 미만 3,000원이며 픽업은 무료다.
 
 ### 참고 이미지
@@ -546,9 +508,9 @@ EMAIL_FROM=
 - 예약·주문번호·접근 토큰은 CSPRNG로 생성한다.
 - 공개 API에는 IP 및 식별자 기반 rate limit을 적용한다.
 - 주문 조회 실패 메시지는 주문 존재 여부를 노출하지 않는다.
-- 응답에 내부 UUID, HMAC, 이메일 원문 등 불필요한 필드를 포함하지 않는다.
+- 응답에 내부 UUID, HMAC 등 불필요한 필드를 포함하지 않는다.
 - 관리자 CSV는 formula injection을 방지한다.
-- 로그에는 주소, 계좌번호, 전화번호, 이메일을 마스킹한다.
+- 로그에는 주소, 계좌번호와 전화번호를 마스킹한다.
 - CSP, `X-Content-Type-Options`, `Referrer-Policy`, frame 제한 등 보안 헤더를 설정한다.
 - 관리자 로그인에는 강한 비밀번호와 Supabase Auth rate limit을 적용한다.
 - 공개 폼에는 봇 방지용 honeypot을 기본 적용하고, 공격이 확인되면 CAPTCHA 추가를 검토한다.
@@ -569,20 +531,20 @@ EMAIL_FROM=
 
 ### 단위 테스트
 
-- 전화·이메일 정규화
+- 전화번호 정규화
 - 총액 계산
 - 2XL 추가금, 무료배송 경계값과 픽업 무료 계산
 - 이니셜, 스티커 카테고리와 이미지 개수 검증
 - 주문 상태 전이
 - 판매 상태 계산
-- 5분 비활성 및 20분 제한 타이머
+- 5분 비활성 및 30분 제한 타이머
 - 오류 코드 → 사용자 메시지 매핑
 
 ### DB 통합 테스트
 
 - 101개 동시 슬롯 요청에서 성공이 정확히 100개 이하인지 확인
 - 만료 예약이 잔여 수량에서 제외되는지 확인
-- 동일 전화번호·이메일 동시 제출 중 하나만 성공하는지 확인
+- 동일 전화번호로 별도 예약을 사용한 여러 주문이 모두 성공하는지 확인
 - 같은 idempotency key 재요청이 기존 주문을 반환하는지 확인
 - 취소 후 슬롯이 반환되는지 확인
 - 한도 가득 찬 상태에서 복구가 차단되는지 확인
@@ -597,13 +559,12 @@ EMAIL_FROM=
 - 판매 중 → 예약 → 주문 → 완료 → 조회
 - 5분 비활성 경고 → 복귀
 - 6분 비활성 → 자동 종료
-- 20분 hard expiry
-- 중복 주문 거절
+- 30분 hard expiry
+- 동일 전화번호 반복 주문 허용
 - 주문 정보 수정 가능/불가능 상태
 - iPhone HEIC 업로드·변환과 실패 재시도
 - 배송·픽업 분기 및 80,000원 무료배송 경계값
 - 관리자 로그인·입금·배송·취소·복구
-- 이메일 outbox 생성
 - 모바일 390px 및 데스크톱 화면
 
 ### 부하 테스트
@@ -643,10 +604,9 @@ Dashboard에서 수동으로 변경한 뒤 migration에 반영하지 않는 운�
   - DB RPC 오류 및 deadlock
   - 주문 제출 실패율
   - 이미지 변환·업로드 실패와 고아 파일 정리 실패
-  - 이메일 outbox 적체 및 최종 실패
   - 관리자 로그인 실패
 - Supabase Cron 실행 이력을 확인할 수 있는 운영 체크리스트를 만든다.
-- 판매 시작 직전 DB 연결, Storage, Cron, 이메일, 관리자 로그인을 점검한다.
+- 판매 시작 직전 DB 연결, Storage, Cron과 관리자 로그인을 점검한다.
 - 판매 시작 중에는 주문 수, 유효 예약 수, 잔여 수량이 한도와 일치하는지 모니터링한다.
 
 ## 20. 구현 단계 제안
@@ -683,7 +643,6 @@ Dashboard에서 수동으로 변경한 뒤 migration에 반영하지 않는 운�
 ### Phase 4 — 자동화와 운영
 
 - 예약·고아 이미지 정리
-- 이메일 outbox 및 재시도
 - 관측·보안 헤더·rate limit
 - 부하 테스트·운영 런북·출시 점검
 
@@ -709,16 +668,10 @@ Dashboard에서 수동으로 변경한 뒤 migration에 반영하지 않는 운�
 - 결정: 1차 버전은 10초 폴링을 사용한다.
 - 이유: 주문 데이터를 Realtime에 공개하지 않으면서 구현과 장애 대응을 단순화한다.
 
-### TDR-005: 이메일 처리에는 transactional outbox를 사용한다
-
-- 결정: 상태 변경과 이메일 이벤트를 한 DB 트랜잭션에서 저장하고 별도 worker가 발송한다.
-- 이유: 이메일 장애가 주문 변경을 실패시키거나 이벤트를 유실시키지 않도록 하기 위함이다.
-
 ## 22. 확정 및 미확정 기술 선택
 
 ### 확정
 
-- 이메일: Resend
 - 주소 검색: Kakao 우편번호 서비스 + 직접 입력 fallback
 - 주문번호: `BB-` + 10자리 Crockford Base32 무작위 문자열
 - 예상 최대 동시 접속자: 500명
@@ -735,8 +688,6 @@ Dashboard에서 수동으로 변경한 뒤 migration에 반영하지 않는 운�
    - Vercel Pro로 전환하거나 다른 상업 사용 가능 정적 호스팅 선택
 3. Supabase Free 백업 운영 일정
    - 권장: 판매 직전, 판매 종료 직후, 배송 완료 전 수동 dump
-4. Resend 요금제
-   - Free는 하루 100통으로 100건 판매의 전체 상태 이메일 요구사항을 충족하지 못함
 
 ## 23. 공식 기술 참고자료
 
@@ -755,7 +706,6 @@ Dashboard에서 수동으로 변경한 뒤 migration에 반영하지 않는 운�
 - [Vercel Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines)
 - [Vercel Functions](https://vercel.com/docs/functions)
 - [Next.js on Vercel](https://vercel.com/docs/frameworks/full-stack/nextjs)
-- [Resend Quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits)
 
 ## 24. 구현 시작 조건
 
@@ -786,8 +736,8 @@ flowchart LR
   UI["Presentation<br/>App Router · Components"] --> APP["Application<br/>Use cases"]
   API["Delivery<br/>Route Handlers · Server Actions"] --> APP
   APP --> DOMAIN["Domain<br/>Policies · State transitions"]
-  APP --> PORTS["Ports<br/>Repository · Mail interfaces"]
-  INFRA["Infrastructure<br/>Supabase · Resend"] --> PORTS
+  APP --> PORTS["Ports<br/>Repository interfaces"]
+  INFRA["Infrastructure<br/>Supabase"] --> PORTS
   DB["Postgres<br/>Constraints · Atomic RPC"] --> INFRA
 ```
 
@@ -816,7 +766,6 @@ src/
 │       ├── public/sale-status/route.ts
 │       ├── reservations/route.ts
 │       ├── orders/route.ts
-│       └── internal/email-worker/route.ts
 │
 ├── features/                             # 비즈니스 기능 단위
 │   ├── sale/
@@ -845,7 +794,6 @@ src/
     │   ├── browser-client.ts
     │   ├── privileged-client.ts
     │   └── database.types.ts
-    ├── email/
     ├── security/
     └── observability/
 
@@ -900,7 +848,7 @@ features/order/
 #### Application
 
 - 하나의 사용자 행동을 완성하는 유스케이스
-- repository, 이메일 outbox 등 필요한 포트를 조합
+- repository 등 필요한 포트를 조합
 - 트랜잭션이 필요한 작업은 하나의 DB RPC에 위임
 - Next.js의 `Request`, `Response`, `cookies()`에 의존하지 않음
 
@@ -917,7 +865,6 @@ features/order/
 
 - Supabase SDK 호출
 - Postgres RPC 호출
-- Resend 호출
 - 암호화·HMAC
 - 외부 응답을 application/domain 타입으로 변환
 - `server-only` 경계를 적용해 클라이언트 번들 포함 방지
@@ -926,10 +873,9 @@ features/order/
 
 - 접수 한도와 예약 수의 원자적 계산
 - 예약→주문 단일 전환
-- 중복 전화·이메일 partial unique constraint
+- 휴대전화 번호 반복 주문 허용
 - idempotency key
 - 관리자 취소·복구
-- transactional email outbox
 
 ### 25.6 요청 처리 흐름
 
@@ -943,7 +889,7 @@ Client OrderForm
   → submitOrder use case
   → OrderRepository.submit()
   → Postgres submit_order RPC
-  → 주문 + 항목 + outbox 원자적 생성
+  → 주문 + 항목 원자적 생성
   → HttpOnly 주문 접근 쿠키 발급
   → 완료 페이지 이동
 ```
@@ -977,7 +923,6 @@ Admin Server Action
 | 판매 상태 폴링 | Route Handler | `no-store` JSON 응답 |
 | 관리자 폼 변경 | Server Action | 관리자 화면과 가까운 타입 안전한 mutation |
 | CSV 다운로드 | Route Handler | 스트리밍 파일 응답 |
-| Cron 이메일 worker | Route Handler | 공유 비밀로 보호된 시스템 호출 |
 
 ### 25.9 상태 관리
 
@@ -1025,11 +970,12 @@ Admin Server Action
 
 ### 26.2 원자적 운영 작업
 
-- `admin_clone_sale`: 판매 기본 설정, 상품과 옵션을 새 초안으로 복사한다.
-- `admin_update_sale_settings`: 판매, 상품, 옵션과 픽업 일정을 한 트랜잭션으로 저장한다.
+- `admin_clone_sale_v2`: 판매 기본 설정과 전체 상품 카탈로그 JSON을 새 초안으로 복사한다.
+- `admin_update_sale_settings_v2`: 판매와 픽업 일정을 저장한다.
+- `admin_upsert_product`, `admin_remove_product`: 상품·재고·옵션 그룹을 저장하고 주문 이력이 있는 상품은 삭제 대신 숨긴다.
 - `admin_set_sale_publication`: 공개 전 필수 설정과 공개 판매 시간 중복을 검증한다.
 - `get_sale_status`와 `claim_reservation`: 동일한 공개 차수 선택 함수를 사용한다.
-- `submit_order`: 전화번호·이메일 중복을 `sale_id` 범위 안에서 검사한다.
+- `submit_order`: 동일 예약과 idempotency key의 중복 제출만 방지하며 휴대전화 번호 반복 주문은 허용한다.
 
 ### 26.3 과거 데이터 보존
 

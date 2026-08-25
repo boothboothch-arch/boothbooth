@@ -18,29 +18,34 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
   const client = createPrivilegedClient()
   const { data: order, error } = await client.from('orders').select('*').eq('order_number', orderNumber).maybeSingle()
   if (error || !order) return null
-  const [{ data: sale }, { data: items }, { data: shipment }, { data: productRows }, { data: pickupSlots }] = await Promise.all([
-    client.from('sales').select('round_number,title,kakao_channel_url,sale_kind').eq('id', order.sale_id).maybeSingle(),
+  const [{ data: sale }, { data: items }, { data: shipment }, { data: productRows }, { data: pickupSlots }, { data: remoteZones }] = await Promise.all([
+    client.from('sales').select('round_number,title,kakao_channel_url,sale_kind,shipping_fee,free_shipping_threshold,remote_area_surcharge').eq('id', order.sale_id).maybeSingle(),
     client.from('order_items').select('*').eq('order_id', order.id).order('sort_order').order('id'),
     client.from('shipments').select('*').eq('order_id', order.id).maybeSingle(),
-    client.from('products').select('id,name,unit_price,item_type,product_options(option_type,value,sort_order,price_delta,active)').eq('sale_id', order.sale_id).eq('active', true).order('created_at'),
+    client.from('products').select('id,name,description,unit_price,item_type,stock_limit,sort_order,option_groups,customization_config').eq('sale_id', order.sale_id).order('sort_order').order('created_at'),
     client.from('pickup_slots').select('id,pickup_date,starts_at,ends_at').eq('sale_id', order.sale_id).eq('active', true).eq('manually_closed', false).gte('pickup_date', todayInKst()).order('pickup_date').order('starts_at'),
+    client.from('delivery_surcharge_zones').select('name,postal_code_start,postal_code_end').eq('active', true).order('postal_code_start'),
   ])
   const itemIds = (items ?? []).map((item) => item.id)
   const { data: imageRows } = itemIds.length ? await client.from('order_item_images').select('*').in('order_item_id', itemIds).order('sort_order') : { data: [] }
   const paths = (imageRows ?? []).map((image) => image.storage_path)
   const { data: signedRows } = paths.length ? await client.storage.from(imageBucket).createSignedUrls(paths, 10 * 60) : { data: [] }
   const signedByPath = new Map((signedRows ?? []).map((row) => [row.path, row.signedUrl]))
-  const products: ProductConfig[] = (productRows ?? []).map((product) => {
-    const options = Array.isArray(product.product_options) ? product.product_options.filter((option) => option.active) : []
+  const products: ProductConfig[] = await Promise.all((productRows ?? []).map(async (product) => {
+    const { count } = await client.from('order_items').select('id,orders!inner(id)', { count: 'exact', head: true }).eq('product_id', product.id).neq('orders.order_state', 'cancelled')
+    const stockLimit = product.stock_limit as number | null
     return {
       id: product.id,
       type: product.item_type as ProductConfig['type'],
       name: product.name,
+      description: product.description ?? '',
       unitPrice: product.unit_price,
-      sizes: options.filter((option) => option.option_type === 'size').sort((a, b) => a.sort_order - b.sort_order).map((option) => ({ value: option.value, priceDelta: option.price_delta })),
-      genders: options.filter((option) => option.option_type === 'gender').sort((a, b) => a.sort_order - b.sort_order).map((option) => option.value),
+      stockLimit,
+      remainingStock: stockLimit === null ? null : Math.max(0, stockLimit - (count ?? 0)),
+      optionGroups: Array.isArray(product.option_groups) ? product.option_groups as ProductConfig['optionGroups'] : [],
+      customization: { initialEnabled: true, stickerEnabled: true, referenceImagesEnabled: true, extraRequestEnabled: true, ...(product.customization_config as Partial<ProductConfig['customization']> ?? {}) },
     }
-  })
+  }))
   const slots: PickupSlotView[] = (pickupSlots ?? []).map((slot) => ({ id: slot.id, date: slot.pickup_date, startsAt: slot.starts_at, endsAt: slot.ends_at }))
   const bankSnapshot = order.bank_snapshot as { bankName: string; accountCiphertext: string; holder: string }
   const pickup = order.pickup_snapshot as OrderView['pickup']
@@ -55,7 +60,6 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
     orderNumber: order.order_number,
     customerName: order.customer_name,
     phone: safeDecrypt(order.phone_ciphertext),
-    email: safeDecrypt(order.email_ciphertext),
     depositorName: order.depositor_name,
     address,
     fulfillmentType: order.fulfillment_type,
@@ -64,8 +68,17 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
     cashReceiptIdentifier: order.cash_receipt_type === 'none' ? null : safeDecrypt(order.cash_receipt_identifier_ciphertext),
     totalQuantity: order.total_quantity,
     subtotalAmount: order.subtotal_amount,
+    baseShippingFee: order.base_shipping_fee ?? order.shipping_fee,
+    remoteAreaSurcharge: order.remote_area_surcharge ?? 0,
     shippingFee: order.shipping_fee,
     totalAmount: order.total_amount,
+    deliveryZone: order.delivery_zone === 'remote' ? 'remote' : 'standard',
+    deliveryConfig: {
+      shippingFee: sale?.shipping_fee ?? 3000,
+      freeShippingThreshold: sale?.free_shipping_threshold ?? 80000,
+      remoteAreaSurcharge: sale?.remote_area_surcharge ?? 3000,
+      remotePostalRanges: (remoteZones ?? []).map((zone) => ({ name: zone.name, start: zone.postal_code_start, end: zone.postal_code_end })),
+    },
     orderState: order.order_state,
     paymentState: order.payment_state,
     paymentReviewReason: order.payment_review_reason,
@@ -79,15 +92,10 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
       productId: item.product_id,
       productName: item.product_name,
       itemType: item.item_type,
-      size: item.size,
-      gender: item.gender,
+      selectedOptions: Array.isArray(item.selected_options) ? item.selected_options : [],
       initialText: item.initial_text,
       stickerSelected: item.sticker_selected,
       stickerCategories: item.sticker_categories ?? [],
-      favoriteColors: item.favorite_colors,
-      favoriteThings: item.favorite_things,
-      desiredMood: item.desired_mood,
-      instagramReference: item.instagram_reference,
       extraRequest: item.extra_request,
       unitPrice: item.unit_price,
       optionSurcharge: item.option_surcharge,

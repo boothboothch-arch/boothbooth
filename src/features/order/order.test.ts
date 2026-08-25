@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { isCustomerEditable, orderTotals, type ProductConfig } from './domain/order'
+import { isCustomerEditable, orderStateOptions, orderStateTone, orderTotals, type ProductConfig } from './domain/order'
 import { orderFormSchema, orderLookupSchema } from './schemas'
 
 const products: ProductConfig[] = [
-  { id: '20000000-0000-0000-0000-000000000001', type: 'shirt', name: '이니셜 티셔츠', unitPrice: 33000, sizes: [{ value: 'M', priceDelta: 0 }, { value: '2XL', priceDelta: 2000 }], genders: ['남성', '여성'] },
-  { id: '20000000-0000-0000-0000-000000000002', type: 'bag', name: '이니셜 가방', unitPrice: 20000, sizes: [], genders: [] },
+  { id: '20000000-0000-0000-0000-000000000001', type: 'shirt', name: '이니셜 티셔츠', description: '', unitPrice: 33000, stockLimit: null, remainingStock: null, customization: { initialEnabled: true, stickerEnabled: true, referenceImagesEnabled: true, extraRequestEnabled: true }, optionGroups: [{ id: '30000000-0000-4000-8000-000000000001', name: '사이즈', selectionType: 'single', required: true, minSelections: 1, maxSelections: 1, sortOrder: 0, active: true, values: [{ id: '40000000-0000-4000-8000-000000000001', label: 'M', priceDelta: 0, sortOrder: 0, active: true }, { id: '40000000-0000-4000-8000-000000000002', label: '2XL', priceDelta: 2000, sortOrder: 1, active: true }] }] },
+  { id: '20000000-0000-0000-0000-000000000002', type: 'bag', name: '이니셜 가방', description: '', unitPrice: 20000, stockLimit: null, remainingStock: null, customization: { initialEnabled: true, stickerEnabled: true, referenceImagesEnabled: true, extraRequestEnabled: true }, optionGroups: [] },
 ]
 
 const validOrder = {
-  customerName: '홍길동', phone: '010-1234-5678', email: 'hello@example.com', depositorName: '홍길동',
+  customerName: '홍길동', phone: '010-1234-5678', depositorName: '홍길동',
   fulfillmentType: 'shipping', postalCode: '04524', address: '서울 중구 세종대로 110', addressDetail: '1층', pickupSlotId: '',
   cashReceiptType: 'none', cashReceiptIdentifier: '',
-  items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', size: 'M', gender: '여성', initialText: 'Min', stickerSelected: true, stickerCategories: '공룡, 무지개', favoriteColors: '', favoriteThings: '', desiredMood: '', instagramReference: '', extraRequest: '', images: [] }],
+  items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'], initialText: 'Min', stickerSelected: true, stickerCategories: '공룡, 무지개', extraRequest: '', images: [] }],
   privacyConsent: true, customOrderConsent: true,
 }
 
 describe('order validation', () => {
   it('상품별 커스텀 주문을 허용한다', () => expect(orderFormSchema.safeParse(validOrder).success).toBe(true))
-  it('가방에는 사이즈와 성별이 없어도 된다', () => expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], productId: products[1].id, itemType: 'bag', size: '', gender: '' }] }).success).toBe(true))
+  it('가방에는 옵션 그룹이 없어도 된다', () => expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], productId: products[1].id, itemType: 'bag', selectedOptionValueIds: [] }] }).success).toBe(true))
   it('이니셜은 공백 제외 영문 10자까지만 허용한다', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'Hello World' }] }).success).toBe(true)
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: '안녕' }] }).success).toBe(false)
@@ -26,7 +26,7 @@ describe('order validation', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, fulfillmentType: 'pickup', postalCode: '', address: '', addressDetail: '', pickupSlotId: crypto.randomUUID() }).success).toBe(true)
   })
   it('상품 수량 상한을 두지 않는다', () => {
-    const bag = { ...validOrder.items[0], productId: products[1].id, itemType: 'bag' as const, size: '', gender: '' }
+    const bag = { ...validOrder.items[0], productId: products[1].id, itemType: 'bag' as const, selectedOptionValueIds: [] }
     expect(orderFormSchema.safeParse({ ...validOrder, items: Array.from({ length: 6 }, () => ({ ...bag, clientId: crypto.randomUUID() })) }).success).toBe(true)
   })
   it('현금영수증 유형에 맞는 번호를 요구한다', () => {
@@ -41,17 +41,31 @@ describe('order validation', () => {
 })
 
 describe('pricing and editing policy', () => {
-  it('2XL 추가금과 배송비를 계산한다', () => expect(orderTotals(products, [{ productId: products[0].id, size: 'M' }, { productId: products[0].id, size: '2XL' }], 'shipping')).toEqual({ subtotal: 68000, shippingFee: 3000, total: 71000 }))
+  const jejuRange = [{ name: '제주특별자치도', start: '63000', end: '63644' }]
+  it('고객과 관리자가 사용하는 주문 상태 네 단계를 유지한다', () => {
+    expect(orderStateOptions.map((option) => option.label)).toEqual(['입금 대기', '입금 완료', '제작 중', '출고 완료'])
+    expect(orderStateTone('payment_pending')).toBe('yellow')
+    expect(orderStateTone('payment_confirmed')).toBe('blue')
+    expect(orderStateTone('completed')).toBe('green')
+  })
+  it('옵션 추가금과 배송비를 계산한다', () => expect(orderTotals(products, [{ productId: products[0].id, selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'] }, { productId: products[0].id, selectedOptionValueIds: ['40000000-0000-4000-8000-000000000002'] }], 'shipping')).toEqual({ subtotal: 68000, baseShippingFee: 3000, remoteAreaSurcharge: 0, shippingFee: 3000, total: 71000, deliveryZone: 'standard' }))
   it('8만원 이상과 픽업은 무료다', () => {
-    expect(orderTotals(products, Array.from({ length: 4 }, () => ({ productId: products[1].id })), 'shipping')).toEqual({ subtotal: 80000, shippingFee: 0, total: 80000 })
+    expect(orderTotals(products, Array.from({ length: 4 }, () => ({ productId: products[1].id })), 'shipping')).toEqual({ subtotal: 80000, baseShippingFee: 0, remoteAreaSurcharge: 0, shippingFee: 0, total: 80000, deliveryZone: 'standard' })
     expect(orderTotals(products, [{ productId: products[1].id }], 'pickup').shippingFee).toBe(0)
   })
   it('차수별 배송 정책을 계산에 반영한다', () => {
-    expect(orderTotals(products, [{ productId: products[1].id }], 'shipping', { shippingFee: 4000, freeShippingThreshold: 50000 })).toEqual({ subtotal: 20000, shippingFee: 4000, total: 24000 })
+    expect(orderTotals(products, [{ productId: products[1].id }], 'shipping', { shippingFee: 4000, freeShippingThreshold: 50000 })).toEqual({ subtotal: 20000, baseShippingFee: 4000, remoteAreaSurcharge: 0, shippingFee: 4000, total: 24000, deliveryZone: 'standard' })
   })
-  it('입금 대기와 입금 확인 상태에서 고객이 수정할 수 있다', () => {
+  it('제주·도서산간 추가 배송비는 무료배송과 별도로 적용한다', () => {
+    const delivery = { shippingFee: 3000, freeShippingThreshold: 80000, remoteAreaSurcharge: 3000, postalCode: '63000', remotePostalRanges: jejuRange }
+    expect(orderTotals(products, [{ productId: products[1].id }], 'shipping', delivery)).toMatchObject({ baseShippingFee: 3000, remoteAreaSurcharge: 3000, shippingFee: 6000, total: 26000, deliveryZone: 'remote' })
+    expect(orderTotals(products, Array.from({ length: 4 }, () => ({ productId: products[1].id })), 'shipping', delivery)).toMatchObject({ baseShippingFee: 0, remoteAreaSurcharge: 3000, shippingFee: 3000, total: 83000, deliveryZone: 'remote' })
+    expect(orderTotals(products, [{ productId: products[1].id }], 'pickup', delivery)).toMatchObject({ remoteAreaSurcharge: 0, shippingFee: 0, deliveryZone: 'standard' })
+  })
+  it('입금 대기와 입금 완료 상태에서만 고객이 수정할 수 있다', () => {
     expect(isCustomerEditable('payment_pending')).toBe(true)
     expect(isCustomerEditable('payment_confirmed')).toBe(true)
     expect(isCustomerEditable('preparing')).toBe(false)
+    expect(isCustomerEditable('completed')).toBe(false)
   })
 })

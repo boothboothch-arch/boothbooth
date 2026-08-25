@@ -27,7 +27,7 @@ export default async function TestSalePage({ params }: { params: Promise<{ saleI
           <div className="launch-logo-crop"><Image src="/booth-booth-logo.png" alt="BOOTH BOOTH" width={3240} height={3240} priority /></div>
           <Badge tone="yellow"><FlaskConical size={13} /> TEST ORDER</Badge>
           <h1>{sale.round_number}차<br />테스트 주문</h1>
-          <p>이 페이지에서 접수한 주문은 테스트 데이터로 분리됩니다. 고객 메인에는 이 차수가 노출되지 않으며 이메일도 발송되지 않습니다.</p>
+          <p>이 페이지에서 접수한 주문은 테스트 데이터로 분리됩니다. 고객 메인에는 이 차수가 노출되지 않습니다.</p>
         </section>
         <SalePanel
           initialNow={renderedAt}

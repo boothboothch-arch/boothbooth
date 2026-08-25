@@ -3,12 +3,17 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/server/auth/admin'
-import { encryptText, hmac, normalizeEmail, normalizePhone } from '@/server/security/crypto'
+import { encryptText, hmac, normalizePhone } from '@/server/security/crypto'
 import { createAuthServerClient } from '@/server/supabase/server-client'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
+import { z } from 'zod'
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim()
+}
+
+function jsonValue(formData: FormData, key: string, fallback: unknown) {
+  try { return JSON.parse(value(formData, key)) as unknown } catch { return fallback }
 }
 
 function kstDate(value: string) {
@@ -33,6 +38,7 @@ function saleErrorMessage(message: string) {
     ['ACTIVE_PICKUP_SLOT_REQUIRED', '공개 전에 활성 픽업 시간을 한 개 이상 등록해주세요.'],
     ['ACTIVE_SHIRT_REQUIRED', '공개 전에 티셔츠 상품을 활성화해주세요.'],
     ['ACTIVE_BAG_REQUIRED', '공개 전에 가방 상품을 활성화해주세요.'],
+    ['ACTIVE_PRODUCT_REQUIRED', '공개 전에 판매할 상품을 한 개 이상 활성화해주세요.'],
     ['ACTIVE_SIZE_REQUIRED', '공개 전에 티셔츠 사이즈를 등록해주세요.'],
     ['ACTIVE_GENDER_REQUIRED', '공개 전에 티셔츠 성별 옵션을 등록해주세요.'],
     ['BANK_INFO_REQUIRED', '공개 전에 입금 계좌 정보를 입력해주세요.'],
@@ -72,16 +78,26 @@ export async function logoutAction() {
 export async function updateOrderAction(formData: FormData) {
   await requireAdmin()
   const orderNumber = value(formData, 'orderNumber')
+  const orderState = value(formData, 'orderState')
+  const trackingNumber = value(formData, 'trackingNumber')
+  if (orderState === 'completed' && value(formData, 'fulfillmentType') === 'shipping' && !trackingNumber) {
+    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('출고 완료로 변경하려면 운송장 번호를 입력해주세요.')}`)
+  }
+  const paymentState = orderState === 'payment_pending'
+    ? 'pending'
+    : orderState === 'cancelled'
+      ? value(formData, 'previousPaymentState') || 'pending'
+      : 'paid'
   const client = createPrivilegedClient()
   const { error } = await client.rpc('admin_update_order', {
     p_order_id: value(formData, 'orderId'),
-    p_order_state: value(formData, 'orderState'),
-    p_payment_state: value(formData, 'paymentState'),
-    p_payment_review_reason: value(formData, 'paymentReviewReason') || null,
+    p_order_state: orderState,
+    p_payment_state: paymentState,
+    p_payment_review_reason: null,
     p_cancellation_reason: value(formData, 'cancellationReason') || null,
     p_carrier_code: value(formData, 'carrierCode') || null,
     p_carrier_name: value(formData, 'carrierName') || null,
-    p_tracking_number: value(formData, 'trackingNumber') || null,
+    p_tracking_number: trackingNumber || null,
   })
   if (error) redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(error.message)}`)
   revalidatePath('/admin')
@@ -94,17 +110,28 @@ export async function updateOrderInfoAction(formData: FormData) {
   await requireAdmin()
   const orderNumber = value(formData, 'orderNumber')
   const phone = normalizePhone(value(formData, 'phone'))
-  const email = normalizeEmail(value(formData, 'email'))
-  if (!/^01[016789]\d{7,8}$/.test(phone) || !/^\S+@\S+\.\S+$/.test(email)) {
-    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('휴대전화 또는 이메일 형식을 확인해주세요.')}`)
+  const fulfillmentType = value(formData, 'fulfillmentType')
+  const postalCode = value(formData, 'postalCode')
+  if (!/^01[016789]\d{7,8}$/.test(phone)) {
+    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('휴대전화 형식을 확인해주세요.')}`)
+  }
+  if (fulfillmentType === 'shipping' && !/^\d{5}$/.test(postalCode)) {
+    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('우편번호를 확인해주세요.')}`)
   }
   const client = createPrivilegedClient()
-  const patch: Record<string, unknown> = {
-    customer_name: value(formData, 'customerName'), phone_ciphertext: encryptText(phone), phone_normalized_hash: hmac(phone), phone_last4_hash: hmac(phone.slice(-4)),
-    email_ciphertext: encryptText(email), email_normalized_hash: hmac(email), depositor_name: value(formData, 'depositorName'),
-  }
-  if (value(formData, 'fulfillmentType') === 'shipping') patch.address_ciphertext = encryptText(JSON.stringify({ postalCode: value(formData, 'postalCode'), address: value(formData, 'address'), addressDetail: value(formData, 'addressDetail') }))
-  const { error } = await client.from('orders').update(patch).eq('id', value(formData, 'orderId'))
+  const addressCiphertext = fulfillmentType === 'shipping'
+    ? encryptText(JSON.stringify({ postalCode, address: value(formData, 'address'), addressDetail: value(formData, 'addressDetail') }))
+    : ''
+  const { error } = await client.rpc('admin_update_order_contact_v2', {
+    p_order_id: value(formData, 'orderId'),
+    p_customer_name: value(formData, 'customerName'),
+    p_phone_ciphertext: encryptText(phone),
+    p_phone_hash: hmac(phone),
+    p_phone_last4_hash: hmac(phone.slice(-4)),
+    p_depositor_name: value(formData, 'depositorName'),
+    p_address_ciphertext: addressCiphertext,
+    p_postal_code: postalCode,
+  })
   if (error) redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(error.message)}`)
   revalidatePath('/admin')
   revalidatePath('/admin/orders')
@@ -112,34 +139,17 @@ export async function updateOrderInfoAction(formData: FormData) {
   redirect(`/admin/orders/${orderNumber}?saved=1`)
 }
 
-export async function resendOrderEmailAction(formData: FormData) {
-  await requireAdmin()
-  const orderNumber = value(formData, 'orderNumber')
-  const client = createPrivilegedClient()
-  const { error } = await client.rpc('admin_requeue_email', {
-    p_order_id: value(formData, 'orderId'),
-    p_event_type: value(formData, 'eventType'),
-  })
-  if (error) redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(error.message)}`)
-  revalidatePath(`/admin/orders/${orderNumber}`)
-  redirect(`/admin/orders/${orderNumber}?emailQueued=1`)
-}
-
 export async function updateSettingsAction(formData: FormData) {
   await requireAdmin()
   const account = value(formData, 'bankAccount')
-  const sizes = [...new Set(value(formData, 'sizes').split(',').map((item) => item.trim()).filter(Boolean))]
-  const genders = [...new Set(value(formData, 'genders').split(',').map((item) => item.trim()).filter(Boolean))]
   const pickupSlots = value(formData, 'pickupSlots').split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
     const [pickup_date, starts_at, ends_at] = line.split(',').map((entry) => entry.trim())
     return { pickup_date, starts_at, ends_at }
   })
   const orderLimit = Number(value(formData, 'orderLimit'))
-  const shirtPrice = Number(value(formData, 'shirtPrice'))
-  const bagPrice = Number(value(formData, 'bagPrice'))
-  const twoXlSurcharge = Number(value(formData, 'twoXlSurcharge'))
   const shippingFee = Number(value(formData, 'shippingFee'))
   const freeShippingThreshold = Number(value(formData, 'freeShippingThreshold'))
+  const remoteAreaSurcharge = Number(value(formData, 'remoteAreaSurcharge'))
   const saleId = value(formData, 'saleId')
   const startsAtValue = value(formData, 'startsAt')
   const endsAtValue = value(formData, 'endsAt')
@@ -150,30 +160,26 @@ export async function updateSettingsAction(formData: FormData) {
     && /^\d{2}:\d{2}$/.test(slot.ends_at)
     && slot.starts_at < slot.ends_at,
   ) && new Set(pickupKeys).size === pickupKeys.length
-  const numbers = [orderLimit, shirtPrice, bagPrice, twoXlSurcharge, shippingFee, freeShippingThreshold]
-  const requiredText = ['title', 'shirtName', 'bagName', 'bankName', 'bankHolder', 'kakaoChannelUrl', 'pickupName'].every((key) => Boolean(value(formData, key)))
+  const numbers = [orderLimit, shippingFee, freeShippingThreshold, remoteAreaSurcharge]
+  const requiredText = ['title', 'bankName', 'bankHolder', 'kakaoChannelUrl', 'pickupName'].every((key) => Boolean(value(formData, key)))
   const validKakaoUrl = isHttpUrl(value(formData, 'kakaoChannelUrl'))
   const validDateInput = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(startsAtValue) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(endsAtValue)
   const startsAt = validDateInput ? kstDate(startsAtValue) : ''
   const endsAt = validDateInput ? kstDate(endsAtValue) : ''
-  if (!saleId || !requiredText || !validKakaoUrl || !Number.isInteger(orderLimit) || orderLimit < 1 || numbers.some((number) => !Number.isInteger(number) || number < 0) || !sizes.length || !genders.length || !validPickupSlots || !startsAt || !endsAt || Date.parse(startsAt) >= Date.parse(endsAt)) {
+  if (!saleId || !requiredText || !validKakaoUrl || !Number.isInteger(orderLimit) || orderLimit < 1 || numbers.some((number) => !Number.isInteger(number) || number < 0) || !validPickupSlots || !startsAt || !endsAt || Date.parse(startsAt) >= Date.parse(endsAt)) {
     redirect(settingsUrl(saleId, 'error', '접수 한도, 상품 옵션 또는 픽업 시간 형식을 확인해주세요.') as never)
   }
   const client = createPrivilegedClient()
-  const { error } = await client.rpc('admin_update_sale_settings', {
+  const { error } = await client.rpc('admin_update_sale_settings_v2', {
     p_sale_id: saleId,
     p_config: {
       title: value(formData, 'title'), startsAt, endsAt, orderLimit,
       manuallyClosed: formData.get('manuallyClosed') === 'on',
       bankName: value(formData, 'bankName'), bankAccountCiphertext: account ? encryptText(account) : null,
       bankHolder: value(formData, 'bankHolder'), kakaoChannelUrl: value(formData, 'kakaoChannelUrl'),
-      shippingNotice: value(formData, 'shippingNotice'), shippingFee, freeShippingThreshold,
+      shippingNotice: value(formData, 'shippingNotice'), shippingFee, freeShippingThreshold, remoteAreaSurcharge,
       pickupName: value(formData, 'pickupName'), pickupAddress: value(formData, 'pickupAddress'),
       pickupNotice: value(formData, 'pickupNotice'), internalNote: value(formData, 'internalNote'),
-      shirt: { name: value(formData, 'shirtName'), unitPrice: shirtPrice },
-      bag: { name: value(formData, 'bagName'), unitPrice: bagPrice },
-      sizes: sizes.map((size, index) => ({ value: size, sortOrder: index + 1, priceDelta: size === '2XL' ? twoXlSurcharge : 0 })),
-      genders: genders.map((gender, index) => ({ value: gender, sortOrder: index + 1 })),
       pickupSlots: pickupSlots.map((slot) => ({ pickupDate: slot.pickup_date, startsAt: slot.starts_at, endsAt: slot.ends_at })),
     },
   })
@@ -183,6 +189,65 @@ export async function updateSettingsAction(formData: FormData) {
   revalidatePath('/admin/settings')
   revalidatePath('/admin/sales')
   redirect(settingsUrl(saleId, 'saved') as never)
+}
+
+const optionValueSchema = z.object({
+  id: z.uuid(), label: z.string().trim().min(1).max(80), priceDelta: z.number().int().min(0),
+  sortOrder: z.number().int().min(0), active: z.boolean(),
+})
+const optionGroupSchema = z.object({
+  id: z.uuid(), name: z.string().trim().min(1).max(80), selectionType: z.enum(['single', 'multiple']),
+  required: z.boolean(), minSelections: z.number().int().min(0), maxSelections: z.number().int().min(1),
+  sortOrder: z.number().int().min(0), active: z.boolean(), values: z.array(optionValueSchema).min(1),
+}).refine((group) => group.minSelections <= group.maxSelections, '최소 선택 수는 최대 선택 수보다 클 수 없습니다.')
+  .refine((group) => group.maxSelections <= group.values.filter((option) => option.active).length || !group.active, '최대 선택 수는 사용 중인 선택값 수보다 클 수 없습니다.')
+  .refine((group) => new Set(group.values.map((option) => option.id)).size === group.values.length, '선택값 식별자가 중복되었습니다.')
+
+export async function saveProductAction(formData: FormData) {
+  await requireAdmin()
+  const saleId = value(formData, 'saleId')
+  const productId = value(formData, 'productId') || null
+  const unitPrice = Number(value(formData, 'unitPrice'))
+  const stockText = value(formData, 'stockLimit')
+  const stockLimit = stockText ? Number(stockText) : null
+  const sortOrder = Number(value(formData, 'sortOrder'))
+  const optionGroups = z.array(optionGroupSchema).refine((groups) => new Set(groups.map((group) => group.id)).size === groups.length, '옵션 그룹 식별자가 중복되었습니다.').safeParse(jsonValue(formData, 'optionGroups', null))
+  const customizationConfig = z.object({
+    initialEnabled: z.boolean(), stickerEnabled: z.boolean(), referenceImagesEnabled: z.boolean(), extraRequestEnabled: z.boolean(),
+  }).safeParse(jsonValue(formData, 'customizationConfig', null))
+  const validNumbers = Number.isInteger(unitPrice) && unitPrice >= 0 && Number.isInteger(sortOrder)
+    && (stockLimit === null || Number.isInteger(stockLimit) && stockLimit >= 0)
+  if (!saleId || !['shirt', 'bag'].includes(value(formData, 'itemType')) || !value(formData, 'name') || !validNumbers || !optionGroups.success || !customizationConfig.success) {
+    redirect(`/admin/sales/${saleId}/products?error=${encodeURIComponent(optionGroups.error?.issues[0]?.message ?? '상품과 옵션 입력값을 확인해주세요.')}` as never)
+  }
+  const { error } = await createPrivilegedClient().rpc('admin_upsert_product', {
+    p_sale_id: saleId,
+    p_product_id: productId,
+    p_config: {
+      name: value(formData, 'name'), description: value(formData, 'description'), itemType: value(formData, 'itemType'),
+      unitPrice, stockLimit, sortOrder, active: formData.get('active') === 'on', optionGroups: optionGroups.data,
+      customizationConfig: customizationConfig.data,
+    },
+  })
+  if (error) redirect(`/admin/sales/${saleId}/products?error=${encodeURIComponent(saleErrorMessage(error.message))}` as never)
+  revalidatePath('/')
+  revalidatePath('/order')
+  revalidatePath(`/admin/sales/${saleId}/products`)
+  revalidatePath('/admin/settings')
+  redirect(`/admin/sales/${saleId}/products?saved=1` as never)
+}
+
+export async function removeProductAction(formData: FormData) {
+  await requireAdmin()
+  const saleId = value(formData, 'saleId')
+  const { error } = await createPrivilegedClient().rpc('admin_remove_product', {
+    p_sale_id: saleId, p_product_id: value(formData, 'productId'),
+  })
+  if (error) redirect(`/admin/sales/${saleId}/products?error=${encodeURIComponent(saleErrorMessage(error.message))}` as never)
+  revalidatePath('/')
+  revalidatePath('/order')
+  revalidatePath(`/admin/sales/${saleId}/products`)
+  redirect(`/admin/sales/${saleId}/products?removed=1` as never)
 }
 
 export async function createSaleAction(formData: FormData) {

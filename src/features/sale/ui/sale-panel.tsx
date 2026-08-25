@@ -127,7 +127,7 @@ export function SalePanel({
       <Button className="sale-panel__button" disabled={!canEnter || loading} onClick={() => void enterOrder()}>
         {loading ? '상태 확인 중…' : canEnter ? <>주문하기 <ArrowRight size={16} /></> : getSaleLabel(status.phase)}
       </Button>
-      <span className="sale-panel__hint">입장 후 20분 동안 주문 자리가 확보됩니다.</span>
+      <span className="sale-panel__hint">입장 후 30분 동안 주문 자리가 확보됩니다.</span>
     </aside>
   )
 }

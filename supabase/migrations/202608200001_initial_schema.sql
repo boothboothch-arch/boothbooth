@@ -289,7 +289,7 @@ begin
 
   if existing.id is not null and existing.state in ('released', 'expired') then
     update public.reservations
-    set sale_id = sale.id, state = 'active', hard_expires_at = now() + interval '20 minutes',
+    set sale_id = sale.id, state = 'active', hard_expires_at = now() + interval '30 minutes',
         lease_expires_at = now() + interval '90 seconds', last_activity_at = now(), converted_order_id = null
     where id = existing.id
     returning * into created;
@@ -297,7 +297,7 @@ begin
     raise exception 'RESERVATION_ALREADY_USED';
   else
     insert into public.reservations (sale_id, token_hash, hard_expires_at, lease_expires_at)
-    values (sale.id, p_token_hash, now() + interval '20 minutes', now() + interval '90 seconds')
+    values (sale.id, p_token_hash, now() + interval '30 minutes', now() + interval '90 seconds')
     returning * into created;
   end if;
 

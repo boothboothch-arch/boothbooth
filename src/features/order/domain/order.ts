@@ -1,14 +1,32 @@
 export type ProductType = 'shirt' | 'bag'
 export type FulfillmentType = 'shipping' | 'pickup'
 export type CashReceiptType = 'none' | 'personal' | 'business'
+export type DeliveryZone = 'standard' | 'remote'
+export type PostalCodeRange = { name: string; start: string; end: string }
+
+export type ProductOptionValue = { id: string; label: string; priceDelta: number; sortOrder: number; active: boolean }
+export type ProductOptionGroup = {
+  id: string
+  name: string
+  selectionType: 'single' | 'multiple'
+  required: boolean
+  minSelections: number
+  maxSelections: number
+  sortOrder: number
+  active: boolean
+  values: ProductOptionValue[]
+}
 
 export type ProductConfig = {
   id: string
   type: ProductType
   name: string
+  description: string
   unitPrice: number
-  sizes: { value: string; priceDelta: number }[]
-  genders: string[]
+  stockLimit: number | null
+  remainingStock: number | null
+  optionGroups: ProductOptionGroup[]
+  customization: { initialEnabled: boolean; stickerEnabled: boolean; referenceImagesEnabled: boolean; extraRequestEnabled: boolean }
 }
 
 export type PickupSlotView = {
@@ -30,15 +48,10 @@ export type OrderItemView = {
   productId: string
   productName: string
   itemType: ProductType
-  size: string | null
-  gender: string | null
+  selectedOptions: { groupId: string; groupName: string; valueId: string; valueLabel: string; priceDelta: number }[]
   initialText: string
   stickerSelected: boolean
   stickerCategories: string[]
-  favoriteColors: string
-  favoriteThings: string
-  desiredMood: string
-  instagramReference: string
   extraRequest: string
   unitPrice: number
   optionSurcharge: number
@@ -56,7 +69,6 @@ export type OrderView = {
   orderNumber: string
   customerName: string
   phone: string
-  email: string
   depositorName: string
   address: { postalCode: string; address: string; addressDetail: string } | null
   fulfillmentType: FulfillmentType
@@ -65,8 +77,17 @@ export type OrderView = {
   cashReceiptIdentifier: string | null
   totalQuantity: number
   subtotalAmount: number
+  baseShippingFee: number
+  remoteAreaSurcharge: number
   shippingFee: number
   totalAmount: number
+  deliveryZone: DeliveryZone
+  deliveryConfig: {
+    shippingFee: number
+    freeShippingThreshold: number
+    remoteAreaSurcharge: number
+    remotePostalRanges: PostalCodeRange[]
+  }
   orderState: 'payment_pending' | 'payment_confirmed' | 'preparing' | 'completed' | 'cancelled'
   paymentState: 'pending' | 'review_required' | 'paid' | 'refund_required' | 'refunded'
   paymentReviewReason: string | null
@@ -82,10 +103,24 @@ export type OrderView = {
 
 export const orderStateLabel: Record<OrderView['orderState'], string> = {
   payment_pending: '입금 대기',
-  payment_confirmed: '입금 확인',
-  preparing: '배송·수령 준비',
-  completed: '완료',
+  payment_confirmed: '입금 완료',
+  preparing: '제작 중',
+  completed: '출고 완료',
   cancelled: '취소',
+}
+
+export const orderStateOptions = [
+  { value: 'payment_pending', label: '입금 대기' },
+  { value: 'payment_confirmed', label: '입금 완료' },
+  { value: 'preparing', label: '제작 중' },
+  { value: 'completed', label: '출고 완료' },
+] as const satisfies ReadonlyArray<{ value: OrderView['orderState']; label: string }>
+
+export function orderStateTone(state: OrderView['orderState']): 'yellow' | 'blue' | 'green' | 'red' {
+  if (state === 'cancelled') return 'red'
+  if (state === 'completed') return 'green'
+  if (state === 'payment_confirmed') return 'blue'
+  return 'yellow'
 }
 
 export const paymentStateLabel: Record<OrderView['paymentState'], string> = {
@@ -100,20 +135,36 @@ export function isCustomerEditable(state: OrderView['orderState']) {
   return state === 'payment_pending' || state === 'payment_confirmed'
 }
 
-export function itemPrice(product: ProductConfig, size?: string | null) {
-  return product.unitPrice + (product.sizes.find((option) => option.value === size)?.priceDelta ?? 0)
+export function itemPrice(product: ProductConfig, selectedOptionValueIds: string[] = []) {
+  const selected = new Set(selectedOptionValueIds)
+  return product.unitPrice + product.optionGroups.flatMap((group) => group.values).reduce((sum, option) => sum + (selected.has(option.id) ? option.priceDelta : 0), 0)
+}
+
+export function isRemotePostalCode(postalCode: string, ranges: PostalCodeRange[]) {
+  const normalized = postalCode.trim()
+  return /^\d{5}$/.test(normalized) && ranges.some((range) => normalized >= range.start && normalized <= range.end)
 }
 
 export function orderTotals(
   products: ProductConfig[],
-  items: { productId: string; size?: string | null }[],
+  items: { productId: string; selectedOptionValueIds?: string[] }[],
   fulfillmentType: FulfillmentType,
-  delivery: { shippingFee: number; freeShippingThreshold: number } = { shippingFee: 3000, freeShippingThreshold: 80_000 },
+  delivery: {
+    shippingFee: number
+    freeShippingThreshold: number
+    remoteAreaSurcharge?: number
+    postalCode?: string
+    remotePostalRanges?: PostalCodeRange[]
+  } = { shippingFee: 3000, freeShippingThreshold: 80_000 },
 ) {
   const subtotal = items.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId)
-    return sum + (product ? itemPrice(product, item.size) : 0)
+    return sum + (product ? itemPrice(product, item.selectedOptionValueIds) : 0)
   }, 0)
-  const shippingFee = fulfillmentType === 'shipping' && subtotal < delivery.freeShippingThreshold ? delivery.shippingFee : 0
-  return { subtotal, shippingFee, total: subtotal + shippingFee }
+  const baseShippingFee = fulfillmentType === 'shipping' && subtotal < delivery.freeShippingThreshold ? delivery.shippingFee : 0
+  const deliveryZone: DeliveryZone = fulfillmentType === 'shipping'
+    && isRemotePostalCode(delivery.postalCode ?? '', delivery.remotePostalRanges ?? []) ? 'remote' : 'standard'
+  const remoteAreaSurcharge = deliveryZone === 'remote' ? delivery.remoteAreaSurcharge ?? 3000 : 0
+  const shippingFee = baseShippingFee + remoteAreaSurcharge
+  return { subtotal, baseShippingFee, remoteAreaSurcharge, shippingFee, total: subtotal + shippingFee, deliveryZone }
 }
