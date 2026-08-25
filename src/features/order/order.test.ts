@@ -43,7 +43,7 @@ describe('order validation', () => {
 describe('pricing and editing policy', () => {
   const jejuRange = [{ name: '제주특별자치도', start: '63000', end: '63644' }]
   it('고객과 관리자가 사용하는 주문 상태 네 단계를 유지한다', () => {
-    expect(orderStateOptions.map((option) => option.label)).toEqual(['입금 대기', '입금 완료', '제작 중', '출고 완료'])
+    expect(orderStateOptions.map((option) => option.label)).toEqual(['입금 대기', '입금 완료', '제작 중', '출고 완료', '미입금 취소'])
     expect(orderStateTone('payment_pending')).toBe('yellow')
     expect(orderStateTone('payment_confirmed')).toBe('blue')
     expect(orderStateTone('completed')).toBe('green')

@@ -85,7 +85,7 @@ export async function updateOrderAction(formData: FormData) {
   const paymentState = orderState === 'payment_pending'
     ? 'pending'
     : orderState === 'cancelled'
-      ? value(formData, 'previousPaymentState') || 'pending'
+      ? 'pending'
       : 'paid'
   const client = createPrivilegedClient()
   const { error } = await client.rpc('admin_update_order', {
@@ -93,7 +93,7 @@ export async function updateOrderAction(formData: FormData) {
     p_order_state: orderState,
     p_payment_state: paymentState,
     p_payment_review_reason: null,
-    p_cancellation_reason: value(formData, 'cancellationReason') || null,
+    p_cancellation_reason: orderState === 'cancelled' ? '미입금 취소' : null,
     p_carrier_code: value(formData, 'carrierCode') || null,
     p_carrier_name: value(formData, 'carrierName') || null,
     p_tracking_number: trackingNumber || null,

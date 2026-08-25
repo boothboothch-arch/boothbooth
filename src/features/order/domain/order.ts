@@ -98,7 +98,7 @@ export const orderStateLabel: Record<OrderView['orderState'], string> = {
   payment_confirmed: '입금 완료',
   preparing: '제작 중',
   completed: '출고 완료',
-  cancelled: '취소',
+  cancelled: '미입금 취소',
 }
 
 export const orderStateOptions = [
@@ -106,6 +106,7 @@ export const orderStateOptions = [
   { value: 'payment_confirmed', label: '입금 완료' },
   { value: 'preparing', label: '제작 중' },
   { value: 'completed', label: '출고 완료' },
+  { value: 'cancelled', label: '미입금 취소' },
 ] as const satisfies ReadonlyArray<{ value: OrderView['orderState']; label: string }>
 
 export function orderStateTone(state: OrderView['orderState']): 'yellow' | 'blue' | 'green' | 'red' {
