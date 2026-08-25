@@ -1643,6 +1643,31 @@ textarea:focus-visible {
   text-align: right;
   overflow-wrap: anywhere;
 }
+.tracking-number-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tracking-number-copy-row .button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+.order-shipment-summary {
+  margin: -8px 0 24px;
+  padding: 17px 18px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+.order-shipment-summary .card-title {
+  margin-bottom: 12px;
+}
+.order-shipment-summary .card-title h2 {
+  font-size: 14px;
+}
 .bank-card {
   padding: 28px;
   color: white;

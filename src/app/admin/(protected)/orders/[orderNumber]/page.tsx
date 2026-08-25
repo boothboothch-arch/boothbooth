@@ -15,7 +15,7 @@ export default async function AdminOrderPage({ params, searchParams }: Props) {
   const overdue = order.orderState === 'payment_pending' && order.paymentState === 'pending' && Date.parse(order.paymentDueAt) < Date.now()
   return (
     <>
-      <div className="admin-heading"><div><Link className="admin-back" href={{ pathname: '/admin/orders', query: { saleId: order.saleId } }}><ArrowLeft size={14} /> {order.roundNumber}차 주문 목록</Link><h1>{order.orderNumber}</h1><p>{order.saleKind === 'test' ? '테스트 주문 · ' : ''}{order.roundNumber}차 · {new Date(order.createdAt).toLocaleString('ko-KR')} 접수 · {order.customerName}</p></div></div>
+      <div className="admin-heading"><div><Link className="admin-back" href={{ pathname: '/admin/orders', query: { saleId: order.saleId } }}><ArrowLeft size={14} /> {order.roundNumber}차 주문 목록</Link><h1>{order.orderNumber}</h1><p>{order.saleKind === 'test' ? '테스트 주문 · ' : ''}{order.roundNumber}차 · {new Date(order.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} 접수 · {order.customerName}</p></div></div>
       {query.saved && <div className="notice notice--success">변경 내용을 저장했습니다.</div>}
       {query.error && <div className="notice notice--error">저장하지 못했습니다: {query.error}</div>}
       {overdue && <div className="notice notice--warning">입금 안내 1시간이 지났습니다. 실제 입금 내역을 확인한 뒤 주문 상태를 변경해주세요.</div>}

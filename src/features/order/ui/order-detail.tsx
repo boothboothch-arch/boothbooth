@@ -75,6 +75,9 @@ export function OrderDetail({
   const [orderCopyState, setOrderCopyState] = useState<
     "idle" | "copied" | "failed"
   >("idle");
+  const [trackingCopyState, setTrackingCopyState] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
   const detailAddressRef = useRef<HTMLInputElement>(null);
   const orderEditorRef = useRef<HTMLElement>(null);
   const [draft, setDraft] = useState<CustomerOrderUpdateInput>({
@@ -144,6 +147,17 @@ export function OrderDetail({
       window.setTimeout(() => setOrderCopyState("idle"), 2000);
     } catch {
       setOrderCopyState("failed");
+    }
+  }
+  async function copyTrackingNumber() {
+    const trackingNumber = order.shipment?.trackingNumber;
+    if (!trackingNumber) return;
+    try {
+      await copyText(trackingNumber);
+      setTrackingCopyState("copied");
+      window.setTimeout(() => setTrackingCopyState("idle"), 2000);
+    } catch {
+      setTrackingCopyState("failed");
     }
   }
   function openPostcode() {
@@ -360,6 +374,61 @@ export function OrderDetail({
               </div>
             ))}
           </div>
+          {order.fulfillmentType === "shipping" &&
+            (order.orderState === "completed" ||
+              order.shipment?.trackingNumber) && (
+              <div className="order-shipment-summary">
+                <div className="card-title">
+                  <h2>배송 정보</h2>
+                  <Truck size={17} />
+                </div>
+                <dl className="info-list">
+                  <div>
+                    <dt>택배사</dt>
+                    <dd>{order.shipment?.carrierName ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>운송장 번호</dt>
+                    <dd className="tracking-number-copy-row">
+                      <span>
+                        {order.shipment?.trackingNumber ??
+                          "등록된 운송장 번호가 없습니다."}
+                      </span>
+                      {order.shipment?.trackingNumber && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => void copyTrackingNumber()}
+                        >
+                          {trackingCopyState === "copied" ? (
+                            <Check size={13} />
+                          ) : (
+                            <Copy size={13} />
+                          )}
+                          {trackingCopyState === "copied"
+                            ? "복사했어요"
+                            : trackingCopyState === "failed"
+                              ? "복사 실패"
+                              : "복사"}
+                        </Button>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>출고일</dt>
+                    <dd>
+                      {order.shipment?.shippedAt
+                        ? new Date(
+                            order.shipment.shippedAt,
+                          ).toLocaleDateString("ko-KR", {
+                            timeZone: "Asia/Seoul",
+                          })
+                        : "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
           {order.orderState === "preparing" && (
             <div className="notice notice--warning">
               <strong>제작이 시작되어 주문서를 수정할 수 없습니다.</strong>
@@ -923,39 +992,6 @@ export function OrderDetail({
             </div>
           )}
         </section>
-        {order.fulfillmentType === "shipping" &&
-          (order.orderState === "completed" ||
-            order.shipment?.trackingNumber) && (
-            <section className="surface-card order-shipment">
-              <div className="card-title">
-                <h2>배송 정보</h2>
-                <Truck size={18} />
-              </div>
-              <dl className="info-list">
-                <div>
-                  <dt>택배사</dt>
-                  <dd>{order.shipment?.carrierName ?? "-"}</dd>
-                </div>
-                <div>
-                  <dt>운송장 번호</dt>
-                  <dd>
-                    {order.shipment?.trackingNumber ??
-                      "등록된 운송장 번호가 없습니다."}
-                  </dd>
-                </div>
-                <div>
-                  <dt>출고 일시</dt>
-                  <dd>
-                    {order.shipment?.shippedAt
-                      ? new Date(order.shipment.shippedAt).toLocaleString(
-                          "ko-KR",
-                        )
-                      : "-"}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-          )}
       </div>
       <p className="support-note">
         취소·환불 또는 주문 변경이 필요하신가요?{" "}
