@@ -1598,6 +1598,30 @@ textarea:focus-visible {
   font-size: 12px;
   font-weight: 900;
 }
+.order-edit-entry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0 0 14px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.order-edit-entry p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.order-edit-entry strong {
+  color: var(--ink);
+}
+.order-edit-entry .button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 11px;
+  font-size: 10px;
+}
 .info-list {
   margin: 0;
   border-top: 1px solid var(--border);
@@ -3629,6 +3653,12 @@ textarea:focus-visible {
   .current-order-status {
     width: 100%;
     min-width: 0;
+  }
+  .order-edit-entry {
+    flex-wrap: wrap;
+  }
+  .order-edit-entry .button {
+    width: auto;
   }
   .status-track {
     padding: 18px 4px 16px;

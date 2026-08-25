@@ -76,6 +76,7 @@ export function OrderDetail({
     "idle" | "copied" | "failed"
   >("idle");
   const detailAddressRef = useRef<HTMLInputElement>(null);
+  const orderEditorRef = useRef<HTMLElement>(null);
   const [draft, setDraft] = useState<CustomerOrderUpdateInput>({
     fulfillmentType: order.fulfillmentType,
     postalCode: order.address?.postalCode ?? "",
@@ -164,6 +165,12 @@ export function OrderDetail({
         window.requestAnimationFrame(() => detailAddressRef.current?.focus());
       },
     }).open();
+  }
+  function startEditing() {
+    setEditing(true);
+    window.requestAnimationFrame(() =>
+      orderEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   }
   function updateItem(
     index: number,
@@ -279,6 +286,16 @@ export function OrderDetail({
       )}
       <div className="order-detail-grid">
         <section className="surface-card order-info-card">
+          {isCustomerEditable(order.orderState) && !editing && (
+            <div className="order-edit-entry">
+              <p>
+                <strong>제작 중</strong>으로 변경되면 주문 수정 불가
+              </p>
+              <Button type="button" variant="secondary" onClick={startEditing}>
+                <Pencil size={13} /> 주문 수정
+              </Button>
+            </div>
+          )}
           <div className="order-info-card__header">
             <div>
               <span>
@@ -353,10 +370,7 @@ export function OrderDetail({
           <dl className="info-list">
             <div>
               <dt>판매 차수</dt>
-              <dd>
-                {order.roundNumber ? `${order.roundNumber}차 · ` : ""}
-                {order.saleTitle}
-              </dd>
+              <dd>{order.saleTitle}</dd>
             </div>
             <div>
               <dt>주문 상태</dt>
@@ -556,16 +570,11 @@ export function OrderDetail({
           </section>
         )}
 
-        <section className="surface-card order-address">
+        <section className="surface-card order-address" ref={orderEditorRef}>
           <div className="card-title">
             <h2>
               {order.fulfillmentType === "shipping" ? "배송지" : "픽업 정보"}
             </h2>
-            {isCustomerEditable(order.orderState) && !editing && (
-              <Button variant="ghost" onClick={() => setEditing(true)}>
-                <Pencil size={14} /> 주문 수정
-              </Button>
-            )}
           </div>
           {!editing &&
             (order.fulfillmentType === "shipping" && order.address ? (
