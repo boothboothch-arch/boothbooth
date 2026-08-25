@@ -1257,8 +1257,7 @@ export function OrderForm({
             </strong>
             <br />
             주문, 제작, 배송·픽업과 고객 문의를 위해 연락처, 주소, 현금영수증
-            정보와 참고 이미지를 수집합니다. 참고 이미지에는 아동 사진이 포함될
-            수 있으며 관리자만 열람합니다.
+            정보와 참고 이미지를 수집합니다.
           </span>
         </label>
         {form.formState.errors.privacyConsent?.message && (
@@ -1279,8 +1278,8 @@ export function OrderForm({
             <br />
             커스텀 상품은 주문 제작 상품으로, 선입금 확인 후 제작이 진행됩니다.
             별도의 디자인 시안은 제공되지 않으며, 커스텀 상품 특성상 제작이
-            시작된 이후에는 교환 및 환불이 어렵습니다. 제작 불량 또는 주문
-            내용과 다른 상품은 확인 후 무료 재제작 또는 교환해드립니다.
+            시작된 이후에는 교환 및 환불이 어렵습니다. 의류 불량 또는 주문
+            내용과 다르게 젝된 상품은 확인 후 긴급 제작 후 교환해드립니다.
           </span>
         </label>
         {form.formState.errors.customOrderConsent?.message && (
