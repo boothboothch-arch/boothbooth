@@ -27,7 +27,6 @@ export const orderFormSchema = z.object({
   postalCode: z.string().trim().max(10),
   address: z.string().trim().max(200),
   addressDetail: z.string().trim().max(200),
-  pickupSlotId: z.string(),
   cashReceiptType: z.enum(['none', 'personal', 'business']),
   cashReceiptIdentifier: z.string().trim().max(20),
   items: z.array(orderItemSchema).min(1, '상품을 하나 이상 추가해주세요.'),
@@ -39,8 +38,6 @@ export const orderFormSchema = z.object({
     if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })
     if (!value.addressDetail) context.addIssue({ code: 'custom', path: ['addressDetail'], message: '상세 주소를 입력해주세요.' })
-  } else if (!z.uuid().safeParse(value.pickupSlotId).success) {
-    context.addIssue({ code: 'custom', path: ['pickupSlotId'], message: '픽업 날짜와 시간을 선택해주세요.' })
   }
   if (value.cashReceiptType === 'personal' && !/^01[016789]\d{7,8}$/.test(value.cashReceiptIdentifier.replaceAll('-', ''))) {
     context.addIssue({ code: 'custom', path: ['cashReceiptIdentifier'], message: '소득공제용 휴대전화 번호를 확인해주세요.' })
@@ -60,7 +57,6 @@ export const customerOrderUpdateSchema = z.object({
   postalCode: z.string().trim().max(10),
   address: z.string().trim().max(200),
   addressDetail: z.string().trim().max(200),
-  pickupSlotId: z.string(),
   cashReceiptType: z.enum(['none', 'personal', 'business']),
   cashReceiptIdentifier: z.string().trim().max(20),
   items: z.array(orderItemSchema.omit({ clientId: true, images: true }).extend({ id: z.uuid() })).min(1),
@@ -69,7 +65,7 @@ export const customerOrderUpdateSchema = z.object({
     if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })
     if (!value.addressDetail) context.addIssue({ code: 'custom', path: ['addressDetail'], message: '상세 주소를 입력해주세요.' })
-  } else if (!z.uuid().safeParse(value.pickupSlotId).success) context.addIssue({ code: 'custom', path: ['pickupSlotId'], message: '픽업 일정을 선택해주세요.' })
+  }
   const digits = value.cashReceiptIdentifier.replaceAll('-', '')
   if (value.cashReceiptType === 'personal' && !/^01[016789]\d{7,8}$/.test(digits)) context.addIssue({ code: 'custom', path: ['cashReceiptIdentifier'], message: '휴대전화 번호를 확인해주세요.' })
   if (value.cashReceiptType === 'business' && !/^\d{10}$/.test(digits)) context.addIssue({ code: 'custom', path: ['cashReceiptIdentifier'], message: '사업자등록번호를 확인해주세요.' })

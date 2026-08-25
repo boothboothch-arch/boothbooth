@@ -68,7 +68,7 @@ export default async function DeleteSalePage({
       )}
 
       <section className="admin-panel danger-section danger-section--delete">
-        <div><h2>차수 영구 삭제</h2><p>상품·옵션·픽업 일정과 제출되지 않은 참고 이미지가 함께 삭제됩니다. 삭제된 차수는 복구할 수 없지만 같은 차수 번호는 다시 사용할 수 있습니다.</p></div>
+        <div><h2>차수 영구 삭제</h2><p>상품·옵션과 제출되지 않은 참고 이미지가 함께 삭제됩니다. 삭제된 차수는 복구할 수 없지만 같은 차수 번호는 다시 사용할 수 있습니다.</p></div>
         {deleteBlockedReason && <div className="notice notice--warning">{deleteBlockedReason}</div>}
         <DangerConfirmForm saleId={sale.id} phrase={deletePhrase} mode="delete" disabled={Boolean(deleteBlockedReason)} />
       </section>

@@ -4,7 +4,6 @@ import { PageShell } from "@/shared/ui/site-shell";
 import { Badge } from "@/shared/ui/badge";
 import { OrderForm } from "@/features/order/ui/order-form";
 import type {
-  PickupSlotView,
   PostalCodeRange,
   ProductConfig,
 } from "@/features/order/domain/order";
@@ -17,15 +16,6 @@ export const metadata = {
   title: "주문서 작성",
   robots: { index: false, follow: false },
 };
-
-function todayInKst() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 export default async function OrderPage() {
   if (!hasServerEnv()) redirect("/");
@@ -45,7 +35,6 @@ export default async function OrderPage() {
   const [
     { data: sale },
     { data: productRows },
-    { data: slots },
     { data: remoteZones },
   ] = await Promise.all([
     client
@@ -64,15 +53,6 @@ export default async function OrderPage() {
       .eq("active", true)
       .order("sort_order")
       .order("created_at"),
-    client
-      .from("pickup_slots")
-      .select("id,pickup_date,starts_at,ends_at")
-      .eq("sale_id", reservationData.saleId)
-      .eq("active", true)
-      .eq("manually_closed", false)
-      .gte("pickup_date", todayInKst())
-      .order("pickup_date")
-      .order("starts_at"),
     client
       .from("delivery_surcharge_zones")
       .select("name,postal_code_start,postal_code_end")
@@ -115,12 +95,6 @@ export default async function OrderPage() {
     (product) => product.remainingStock === null || product.remainingStock > 0,
   );
   if (!availableProducts.length) redirect("/");
-  const pickupSlots: PickupSlotView[] = (slots ?? []).map((slot) => ({
-    id: slot.id,
-    date: slot.pickup_date,
-    startsAt: slot.starts_at,
-    endsAt: slot.ends_at,
-  }));
   const remotePostalRanges: PostalCodeRange[] = (remoteZones ?? []).map(
     (zone) => ({
       name: zone.name,
@@ -146,7 +120,6 @@ export default async function OrderPage() {
           hardExpiresAt={reservationData.hardExpiresAt}
           serverNow={reservationData.serverNow}
           products={products}
-          pickupSlots={pickupSlots}
           shippingFee={sale?.shipping_fee ?? 3000}
           freeShippingThreshold={sale?.free_shipping_threshold ?? 80000}
           remoteAreaSurcharge={sale?.remote_area_surcharge ?? 3000}

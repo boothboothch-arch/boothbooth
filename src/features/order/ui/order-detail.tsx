@@ -15,10 +15,6 @@ function receiptLabel(type: OrderView['cashReceiptType']) {
   return type === 'personal' ? '개인 소득공제용' : type === 'business' ? '사업자 지출증빙용' : '신청 안 함'
 }
 
-function pickupTime(pickup: NonNullable<OrderView['pickup']>) {
-  return `${pickup.date} · ${pickup.startsAt.slice(0, 5)}–${pickup.endsAt.slice(0, 5)}`
-}
-
 async function copyText(value: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(value)
@@ -47,7 +43,7 @@ export function OrderDetail({ initialOrder, complete = false }: { initialOrder: 
   const [draft, setDraft] = useState<CustomerOrderUpdateInput>({
     fulfillmentType: order.fulfillmentType,
     postalCode: order.address?.postalCode ?? '', address: order.address?.address ?? '', addressDetail: order.address?.addressDetail ?? '',
-    pickupSlotId: '', cashReceiptType: order.cashReceiptType, cashReceiptIdentifier: order.cashReceiptIdentifier ?? '',
+    cashReceiptType: order.cashReceiptType, cashReceiptIdentifier: order.cashReceiptIdentifier ?? '',
     items: order.items.map((item) => ({
       id: item.id, productId: item.productId, itemType: item.itemType, selectedOptionValueIds: item.selectedOptions.map((option) => option.valueId), initialText: item.initialText,
       stickerSelected: item.stickerSelected, stickerCategories: item.stickerCategories.join(', '), extraRequest: item.extraRequest,
@@ -153,7 +149,7 @@ export function OrderDetail({ initialOrder, complete = false }: { initialOrder: 
 
         <section className="surface-card order-address">
           <div className="card-title"><h2>{order.fulfillmentType === 'shipping' ? '배송지' : '픽업 정보'}</h2>{isCustomerEditable(order.orderState) && !editing && <Button variant="ghost" onClick={() => setEditing(true)}><Pencil size={14} /> 주문 수정</Button>}</div>
-          {!editing && (order.fulfillmentType === 'shipping' && order.address ? <address>({order.address.postalCode}) {order.address.address}<br />{order.address.addressDetail}</address> : order.pickup ? <address><strong>{order.pickup.name}</strong><br />{order.pickup.address}<br />{pickupTime(order.pickup)}<br />{order.pickup.notice}</address> : <p>픽업 정보를 확인해주세요.</p>)}
+          {!editing && (order.fulfillmentType === 'shipping' && order.address ? <address>({order.address.postalCode}) {order.address.address}<br />{order.address.addressDetail}</address> : order.pickup ? <address><strong>{order.pickup.name}</strong><br />{order.pickup.address && <>{order.pickup.address}<br /></>}{order.pickup.notice}</address> : <p>픽업 정보를 확인해주세요.</p>)}
           {editing && <div className="customer-order-editor"><div className="choice-cards"><label><input type="radio" checked={draft.fulfillmentType === 'shipping'} onChange={() => setDraft((current) => ({ ...current, fulfillmentType: 'shipping' }))} /><span><Truck size={18} /><strong>택배 배송</strong></span></label><label><input type="radio" checked={draft.fulfillmentType === 'pickup'} onChange={() => setDraft((current) => ({ ...current, fulfillmentType: 'pickup' }))} /><span><ShoppingBag size={18} /><strong>직접 픽업</strong></span></label></div>{draft.fulfillmentType === 'shipping' ? <div className="delivery-fields">
             <div className="field delivery-address-field">
               <span className="field__label">배송지</span>
@@ -166,7 +162,7 @@ export function OrderDetail({ initialOrder, complete = false }: { initialOrder: 
             </div>
             {draft.postalCode && draft.address && <Field label="상세 주소"><input ref={detailAddressRef} autoComplete="address-line2" value={draft.addressDetail} onChange={(event) => setDraft((current) => ({ ...current, addressDetail: event.target.value }))} placeholder="동·호수 등 상세 주소를 입력해주세요" /></Field>}
             {draftTotals.deliveryZone === 'remote' && <div className="notice notice--warning"><strong>제주·도서산간 추가 배송비 {draftTotals.remoteAreaSurcharge.toLocaleString('ko-KR')}원이 적용됩니다.</strong></div>}
-          </div> : <Field label="픽업 일정"><select value={draft.pickupSlotId} onChange={(event) => setDraft((current) => ({ ...current, pickupSlotId: event.target.value }))}><option value="">일정을 선택해주세요</option>{order.availablePickupSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.date} · {slot.startsAt.slice(0,5)}–{slot.endsAt.slice(0,5)}</option>)}</select></Field>}
+          </div> : null}
             <h3>상품 정보</h3>{draft.items.map((item, index) => {
               const product = order.availableProducts.find((entry) => entry.id === item.productId)
               if (!product) return null

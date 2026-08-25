@@ -76,7 +76,7 @@ export default async function AdminSalesPage({ searchParams }: { searchParams: P
       </section>
       <section className="admin-panel admin-round-guide">
         <h2>권장 운영 순서</h2>
-        <ol><li>지난 차수를 복사해 다음 차수 초안을 만듭니다.</li><li>판매 설정에서 시간·가격·픽업 일정·계좌·안내를 수정하고 저장합니다.</li><li>미리보기와 공개 전 점검을 확인한 뒤 공개합니다.</li><li>판매 종료 후 주문 처리를 마치고 차수를 보관합니다.</li></ol>
+        <ol><li>지난 차수를 복사해 다음 차수 초안을 만듭니다.</li><li>판매 설정에서 시간·가격·배송·계좌·안내를 수정하고 저장합니다.</li><li>미리보기와 공개 전 점검을 확인한 뒤 공개합니다.</li><li>판매 종료 후 주문 처리를 마치고 차수를 보관합니다.</li></ol>
       </section>
     </>
   )

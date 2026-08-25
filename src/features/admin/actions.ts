@@ -35,7 +35,6 @@ function saleErrorMessage(message: string) {
   const matched = [
     ['ROUND_NUMBER_ALREADY_EXISTS', '이미 존재하는 차수입니다.'],
     ['PUBLISHED_SALE_WINDOW_OVERLAP', '다른 공개 판매와 판매 시간이 겹칩니다.'],
-    ['ACTIVE_PICKUP_SLOT_REQUIRED', '공개 전에 활성 픽업 시간을 한 개 이상 등록해주세요.'],
     ['ACTIVE_SHIRT_REQUIRED', '공개 전에 티셔츠 상품을 활성화해주세요.'],
     ['ACTIVE_BAG_REQUIRED', '공개 전에 가방 상품을 활성화해주세요.'],
     ['ACTIVE_PRODUCT_REQUIRED', '공개 전에 판매할 상품을 한 개 이상 활성화해주세요.'],
@@ -142,10 +141,6 @@ export async function updateOrderInfoAction(formData: FormData) {
 export async function updateSettingsAction(formData: FormData) {
   await requireAdmin()
   const account = value(formData, 'bankAccount')
-  const pickupSlots = value(formData, 'pickupSlots').split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [pickup_date, starts_at, ends_at] = line.split(',').map((entry) => entry.trim())
-    return { pickup_date, starts_at, ends_at }
-  })
   const orderLimit = Number(value(formData, 'orderLimit'))
   const shippingFee = Number(value(formData, 'shippingFee'))
   const freeShippingThreshold = Number(value(formData, 'freeShippingThreshold'))
@@ -153,21 +148,14 @@ export async function updateSettingsAction(formData: FormData) {
   const saleId = value(formData, 'saleId')
   const startsAtValue = value(formData, 'startsAt')
   const endsAtValue = value(formData, 'endsAt')
-  const pickupKeys = pickupSlots.map((slot) => `${slot.pickup_date},${slot.starts_at},${slot.ends_at}`)
-  const validPickupSlots = pickupSlots.every((slot) =>
-    /^\d{4}-\d{2}-\d{2}$/.test(slot.pickup_date)
-    && /^\d{2}:\d{2}$/.test(slot.starts_at)
-    && /^\d{2}:\d{2}$/.test(slot.ends_at)
-    && slot.starts_at < slot.ends_at,
-  ) && new Set(pickupKeys).size === pickupKeys.length
   const numbers = [orderLimit, shippingFee, freeShippingThreshold, remoteAreaSurcharge]
   const requiredText = ['title', 'bankName', 'bankHolder', 'kakaoChannelUrl', 'pickupName'].every((key) => Boolean(value(formData, key)))
   const validKakaoUrl = isHttpUrl(value(formData, 'kakaoChannelUrl'))
   const validDateInput = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(startsAtValue) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(endsAtValue)
   const startsAt = validDateInput ? kstDate(startsAtValue) : ''
   const endsAt = validDateInput ? kstDate(endsAtValue) : ''
-  if (!saleId || !requiredText || !validKakaoUrl || !Number.isInteger(orderLimit) || orderLimit < 1 || numbers.some((number) => !Number.isInteger(number) || number < 0) || !validPickupSlots || !startsAt || !endsAt || Date.parse(startsAt) >= Date.parse(endsAt)) {
-    redirect(settingsUrl(saleId, 'error', '접수 한도, 상품 옵션 또는 픽업 시간 형식을 확인해주세요.') as never)
+  if (!saleId || !requiredText || !validKakaoUrl || !Number.isInteger(orderLimit) || orderLimit < 1 || numbers.some((number) => !Number.isInteger(number) || number < 0) || !startsAt || !endsAt || Date.parse(startsAt) >= Date.parse(endsAt)) {
+    redirect(settingsUrl(saleId, 'error', '접수 한도, 판매 시간 또는 비용 설정을 확인해주세요.') as never)
   }
   const client = createPrivilegedClient()
   const { error } = await client.rpc('admin_update_sale_settings_v2', {
@@ -180,7 +168,6 @@ export async function updateSettingsAction(formData: FormData) {
       shippingNotice: value(formData, 'shippingNotice'), shippingFee, freeShippingThreshold, remoteAreaSurcharge,
       pickupName: value(formData, 'pickupName'), pickupAddress: value(formData, 'pickupAddress'),
       pickupNotice: value(formData, 'pickupNotice'), internalNote: value(formData, 'internalNote'),
-      pickupSlots: pickupSlots.map((slot) => ({ pickupDate: slot.pickup_date, startsAt: slot.starts_at, endsAt: slot.ends_at })),
     },
   })
   if (error) redirect(settingsUrl(saleId, 'error', saleErrorMessage(error.message)) as never)

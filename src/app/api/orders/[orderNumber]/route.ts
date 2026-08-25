@@ -38,7 +38,6 @@ export async function PATCH(request: NextRequest, { params }: Context) {
       p_order_id: order.id,
       p_payload: {
         fulfillmentType: value.fulfillmentType,
-        pickupSlotId: value.pickupSlotId || null,
         postalCode: value.fulfillmentType === 'shipping' ? value.postalCode : '',
         addressCiphertext: value.fulfillmentType === 'shipping' ? encryptText(JSON.stringify({ postalCode: value.postalCode, address: value.address, addressDetail: value.addressDetail })) : '',
         cashReceiptType: value.cashReceiptType,
@@ -48,7 +47,6 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     })
     if (error) {
       if (error.message.includes('ORDER_NOT_EDITABLE')) throw new ApiProblem('ORDER_NOT_EDITABLE', '제작이 시작되어 주문서를 수정할 수 없어요.', 409)
-      if (error.message.includes('PICKUP_SLOT_UNAVAILABLE')) throw new ApiProblem('PICKUP_SLOT_UNAVAILABLE', '선택한 픽업 일정이 마감됐어요.', 409)
       if (error.message.includes('INVALID_POSTAL_CODE')) throw new ApiProblem('INVALID_POSTAL_CODE', '배송지 우편번호를 확인해주세요.', 422)
       throw new ApiProblem('ORDER_UPDATE_ERROR', '주문을 수정하지 못했어요.', 500)
     }

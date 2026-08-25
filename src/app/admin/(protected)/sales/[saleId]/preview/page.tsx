@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, ExternalLink, PackageCheck, Truck } from 'lucide-react'
+import { ArrowLeft, ExternalLink, MapPin, PackageCheck, Truck } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { Badge } from '@/shared/ui/badge'
@@ -9,10 +9,9 @@ type OptionGroup = { id: string; name: string; active: boolean; values: { id: st
 export default async function SalePreviewPage({ params }: { params: Promise<{ saleId: string }> }) {
   const { saleId } = await params
   const client = createPrivilegedClient()
-  const [{ data: sale }, { data: products }, { data: slots }, { count: orders }] = await Promise.all([
+  const [{ data: sale }, { data: products }, { count: orders }] = await Promise.all([
     client.from('sales').select('*').eq('id', saleId).maybeSingle(),
     client.from('products').select('*').eq('sale_id', saleId).order('sort_order').order('created_at'),
-    client.from('pickup_slots').select('*').eq('sale_id', saleId).eq('active', true).eq('manually_closed', false).order('pickup_date').order('starts_at'),
     client.from('orders').select('id', { count: 'exact', head: true }).eq('sale_id', saleId).neq('order_state', 'cancelled'),
   ])
   if (!sale) notFound()
@@ -27,7 +26,7 @@ export default async function SalePreviewPage({ params }: { params: Promise<{ sa
       <section className="preview-grid">
         <article className="admin-panel"><PackageCheck size={20} /><h2>상품과 옵션</h2>{(products ?? []).map((product) => { const groups = (Array.isArray(product.option_groups) ? product.option_groups : []) as OptionGroup[]; return <div className="preview-product" key={product.id}><strong>{product.name}{!product.active && ' (숨김)'}</strong><span>{product.unit_price.toLocaleString('ko-KR')}원{product.stock_limit !== null ? ` · 한정 ${product.stock_limit}개` : ''}</span>{product.description && <small>{product.description}</small>}{groups.filter((group) => group.active).map((group) => <small key={group.id}>{group.name} {(group.values ?? []).filter((value) => value.active).map((value) => `${value.label}${value.priceDelta ? ` (${value.priceDelta > 0 ? '+' : ''}${value.priceDelta.toLocaleString('ko-KR')}원)` : ''}`).join(' · ')}</small>)}</div>})}{!products?.length && <p className="text-danger">등록된 상품이 없습니다.</p>}</article>
         <article className="admin-panel"><Truck size={20} /><h2>배송</h2><p>{sale.free_shipping_threshold.toLocaleString('ko-KR')}원 이상 무료배송</p><p>미만 배송비 {sale.shipping_fee.toLocaleString('ko-KR')}원</p><p>제주·도서산간 추가 {sale.remote_area_surcharge.toLocaleString('ko-KR')}원</p><small>{sale.shipping_notice || '추가 배송 안내 없음'}</small></article>
-        <article className="admin-panel"><CalendarDays size={20} /><h2>직접 픽업</h2><p>{sale.pickup_name}</p><small>{sale.pickup_address || '픽업 주소 미입력'}</small><ul>{(slots ?? []).map((slot) => <li key={slot.id}>{slot.pickup_date} · {String(slot.starts_at).slice(0, 5)}–{String(slot.ends_at).slice(0, 5)}</li>)}</ul>{!slots?.length && <p className="text-danger">픽업 일정이 없습니다.</p>}</article>
+        <article className="admin-panel"><MapPin size={20} /><h2>직접 픽업</h2><p>{sale.pickup_name}</p><small>{sale.pickup_address || '픽업 주소 미입력'}</small>{sale.pickup_notice && <p>{sale.pickup_notice}</p>}</article>
       </section>
       <div className="notice">계좌번호는 주문 완료·조회 화면에서만 표시되므로 이 미리보기에는 노출하지 않습니다.</div>
     </>

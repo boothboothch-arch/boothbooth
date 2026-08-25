@@ -9,7 +9,7 @@ const products: ProductConfig[] = [
 
 const validOrder = {
   customerName: '홍길동', phone: '010-1234-5678', depositorName: '홍길동',
-  fulfillmentType: 'shipping', postalCode: '04524', address: '서울 중구 세종대로 110', addressDetail: '1층', pickupSlotId: '',
+  fulfillmentType: 'shipping', postalCode: '04524', address: '서울 중구 세종대로 110', addressDetail: '1층',
   cashReceiptType: 'none', cashReceiptIdentifier: '',
   items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'], initialText: 'Min', stickerSelected: true, stickerCategories: '공룡, 무지개', extraRequest: '', images: [] }],
   privacyConsent: true, customOrderConsent: true,
@@ -23,7 +23,7 @@ describe('order validation', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: '안녕' }] }).success).toBe(false)
   })
   it('배송과 픽업 조건을 구분한다', () => {
-    expect(orderFormSchema.safeParse({ ...validOrder, fulfillmentType: 'pickup', postalCode: '', address: '', addressDetail: '', pickupSlotId: crypto.randomUUID() }).success).toBe(true)
+    expect(orderFormSchema.safeParse({ ...validOrder, fulfillmentType: 'pickup', postalCode: '', address: '', addressDetail: '' }).success).toBe(true)
   })
   it('상품 수량 상한을 두지 않는다', () => {
     const bag = { ...validOrder.items[0], productId: products[1].id, itemType: 'bag' as const, selectedOptionValueIds: [] }

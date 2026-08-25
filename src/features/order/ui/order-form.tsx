@@ -20,7 +20,6 @@ import { Button } from "@/shared/ui/button";
 import {
   itemPrice,
   orderTotals,
-  type PickupSlotView,
   type PostalCodeRange,
   type ProductConfig,
 } from "../domain/order";
@@ -41,7 +40,6 @@ type Props = {
   hardExpiresAt: string;
   serverNow: string;
   products: ProductConfig[];
-  pickupSlots: PickupSlotView[];
   shippingFee: number;
   freeShippingThreshold: number;
   remoteAreaSurcharge: number;
@@ -160,21 +158,10 @@ async function prepareImage(original: File): Promise<ImageDraft> {
   }
 }
 
-function pickupLabel(slot: PickupSlotView) {
-  const date = new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-    timeZone: "Asia/Seoul",
-  }).format(new Date(`${slot.date}T00:00:00+09:00`));
-  return `${date} · ${slot.startsAt.slice(0, 5)}–${slot.endsAt.slice(0, 5)}`;
-}
-
 export function OrderForm({
   hardExpiresAt,
   serverNow,
   products,
-  pickupSlots,
   shippingFee,
   freeShippingThreshold,
   remoteAreaSurcharge,
@@ -205,7 +192,6 @@ export function OrderForm({
       postalCode: "",
       address: "",
       addressDetail: "",
-      pickupSlotId: "",
       cashReceiptType: "none",
       cashReceiptIdentifier: "",
       items: [itemDefaults(firstProduct)],
@@ -1018,27 +1004,7 @@ export function OrderForm({
                 </div>
               )}
             </div>
-          ) : (
-            <Field
-              label="픽업 날짜·시간"
-              error={form.formState.errors.pickupSlotId?.message}
-              required
-            >
-              <select aria-required="true" {...form.register("pickupSlotId")}>
-                <option value="">픽업 일정을 선택해주세요</option>
-                {pickupSlots.map((slot) => (
-                  <option key={slot.id} value={slot.id}>
-                    {pickupLabel(slot)}
-                  </option>
-                ))}
-              </select>
-              {!pickupSlots.length && (
-                <span className="field__error">
-                  현재 선택 가능한 픽업 일정이 없습니다.
-                </span>
-              )}
-            </Field>
-          )}
+          ) : null}
         </div>
 
         <div className="form-section">

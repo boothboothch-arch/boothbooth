@@ -1,13 +1,9 @@
 import 'server-only'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { decryptText } from '@/server/security/crypto'
-import type { OrderView, PickupSlotView, ProductConfig } from '@/features/order/domain/order'
+import type { OrderView, ProductConfig } from '@/features/order/domain/order'
 
 const imageBucket = 'order-reference-images'
-
-function todayInKst() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-}
 
 function safeDecrypt(value: string | null | undefined) {
   if (!value) return ''
@@ -18,12 +14,11 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
   const client = createPrivilegedClient()
   const { data: order, error } = await client.from('orders').select('*').eq('order_number', orderNumber).maybeSingle()
   if (error || !order) return null
-  const [{ data: sale }, { data: items }, { data: shipment }, { data: productRows }, { data: pickupSlots }, { data: remoteZones }] = await Promise.all([
+  const [{ data: sale }, { data: items }, { data: shipment }, { data: productRows }, { data: remoteZones }] = await Promise.all([
     client.from('sales').select('round_number,title,kakao_channel_url,sale_kind,shipping_fee,free_shipping_threshold,remote_area_surcharge').eq('id', order.sale_id).maybeSingle(),
     client.from('order_items').select('*').eq('order_id', order.id).order('sort_order').order('id'),
     client.from('shipments').select('*').eq('order_id', order.id).maybeSingle(),
     client.from('products').select('id,name,description,unit_price,item_type,stock_limit,sort_order,option_groups,customization_config').eq('sale_id', order.sale_id).order('sort_order').order('created_at'),
-    client.from('pickup_slots').select('id,pickup_date,starts_at,ends_at').eq('sale_id', order.sale_id).eq('active', true).eq('manually_closed', false).gte('pickup_date', todayInKst()).order('pickup_date').order('starts_at'),
     client.from('delivery_surcharge_zones').select('name,postal_code_start,postal_code_end').eq('active', true).order('postal_code_start'),
   ])
   const itemIds = (items ?? []).map((item) => item.id)
@@ -46,7 +41,6 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
       customization: { initialEnabled: true, stickerEnabled: true, referenceImagesEnabled: true, extraRequestEnabled: true, ...(product.customization_config as Partial<ProductConfig['customization']> ?? {}) },
     }
   }))
-  const slots: PickupSlotView[] = (pickupSlots ?? []).map((slot) => ({ id: slot.id, date: slot.pickup_date, startsAt: slot.starts_at, endsAt: slot.ends_at }))
   const bankSnapshot = order.bank_snapshot as { bankName: string; accountCiphertext: string; holder: string }
   const pickup = order.pickup_snapshot as OrderView['pickup']
   const address = order.fulfillment_type === 'shipping' ? JSON.parse(safeDecrypt(order.address_ciphertext)) as NonNullable<OrderView['address']> : null
@@ -86,7 +80,6 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
     paymentDueAt: order.payment_due_at,
     bank: { bankName: bankSnapshot.bankName, account: safeDecrypt(bankSnapshot.accountCiphertext), holder: bankSnapshot.holder },
     availableProducts: products,
-    availablePickupSlots: slots,
     items: (items ?? []).map((item) => ({
       id: item.id,
       productId: item.product_id,

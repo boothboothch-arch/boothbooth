@@ -29,13 +29,6 @@ export type ProductConfig = {
   customization: { initialEnabled: boolean; stickerEnabled: boolean; referenceImagesEnabled: boolean; extraRequestEnabled: boolean }
 }
 
-export type PickupSlotView = {
-  id: string
-  date: string
-  startsAt: string
-  endsAt: string
-}
-
 export type OrderItemImageView = {
   id: string
   url: string
@@ -72,7 +65,7 @@ export type OrderView = {
   depositorName: string
   address: { postalCode: string; address: string; addressDetail: string } | null
   fulfillmentType: FulfillmentType
-  pickup: { name: string; address: string; notice: string; date: string; startsAt: string; endsAt: string } | null
+  pickup: { name: string; address: string; notice: string } | null
   cashReceiptType: CashReceiptType
   cashReceiptIdentifier: string | null
   totalQuantity: number
@@ -95,7 +88,6 @@ export type OrderView = {
   paymentDueAt: string
   bank: { bankName: string; account: string; holder: string }
   availableProducts: ProductConfig[]
-  availablePickupSlots: PickupSlotView[]
   items: OrderItemView[]
   shipment: { carrierCode: string | null; carrierName: string | null; trackingNumber: string | null; shippedAt: string | null } | null
   createdAt: string
