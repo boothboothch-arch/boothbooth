@@ -138,6 +138,59 @@ export async function updateOrderInfoAction(formData: FormData) {
   redirect(`/admin/orders/${orderNumber}?saved=1`)
 }
 
+const adminOrderItemUpdateSchema = z.object({
+  orderId: z.uuid(),
+  orderItemId: z.uuid(),
+  selectedOptionValueIds: z.array(z.uuid()).max(30),
+  initialText: z.string().trim().max(40).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 20, '이니셜은 공백 제외 20자까지 입력할 수 있습니다.'),
+  stickerSelected: z.boolean(),
+  stickerCategories: z.string().trim().max(200),
+  extraRequest: z.string().trim().max(300),
+})
+
+function orderItemUpdateError(message: string) {
+  if (message.includes('ORDER_ITEM_NOT_EDITABLE')) return '출고 완료 또는 취소된 주문의 제작 정보는 수정할 수 없습니다.'
+  if (message.includes('INVALID_OPTION')) return '상품 옵션 선택 조건을 확인해주세요.'
+  if (message.includes('INVALID_INITIAL')) return '이니셜은 영문 대·소문자로 공백 제외 20자까지 입력해주세요.'
+  if (message.includes('ORDER_ITEM_NOT_FOUND') || message.includes('PRODUCT_NOT_FOUND')) return '수정할 상품 정보를 찾지 못했습니다.'
+  return '상품별 제작 정보를 수정하지 못했습니다.'
+}
+
+export async function updateOrderItemAction(formData: FormData) {
+  const admin = await requireAdmin()
+  const orderNumber = value(formData, 'orderNumber')
+  const parsed = adminOrderItemUpdateSchema.safeParse({
+    orderId: value(formData, 'orderId'),
+    orderItemId: value(formData, 'orderItemId'),
+    selectedOptionValueIds: jsonValue(formData, 'selectedOptionValueIds', null),
+    initialText: value(formData, 'initialText'),
+    stickerSelected: value(formData, 'stickerSelected') === 'true',
+    stickerCategories: value(formData, 'stickerCategories'),
+    extraRequest: value(formData, 'extraRequest'),
+  })
+  if (!orderNumber || !parsed.success) {
+    const message = parsed.success ? '주문번호를 확인해주세요.' : parsed.error.issues[0]?.message ?? '입력 내용을 확인해주세요.'
+    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(message)}` as never)
+  }
+  const { error } = await createPrivilegedClient().rpc('admin_update_order_item_v1', {
+    p_order_id: parsed.data.orderId,
+    p_order_item_id: parsed.data.orderItemId,
+    p_payload: {
+      selectedOptionValueIds: parsed.data.selectedOptionValueIds,
+      initialText: parsed.data.initialText,
+      stickerSelected: parsed.data.stickerSelected,
+      stickerCategories: parsed.data.stickerSelected ? parsed.data.stickerCategories : '',
+      extraRequest: parsed.data.extraRequest,
+    },
+    p_admin_user_id: admin.id,
+  })
+  if (error) redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(orderItemUpdateError(error.message))}` as never)
+  revalidatePath('/admin')
+  revalidatePath('/admin/orders')
+  revalidatePath(`/admin/orders/${orderNumber}`)
+  redirect(`/admin/orders/${orderNumber}?itemSaved=1` as never)
+}
+
 export async function updateSettingsAction(formData: FormData) {
   await requireAdmin()
   const account = value(formData, 'bankAccount')

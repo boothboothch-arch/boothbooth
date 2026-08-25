@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 
-const title = '부스부스 이니셜 주문'
+const title = '부스부스'
 const description = '부스부스 이니셜 티셔츠와 가방을 주문하세요.'
 
 export const metadata: Metadata = {

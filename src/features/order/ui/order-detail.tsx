@@ -17,6 +17,7 @@ import { Button } from "@/shared/ui/button";
 import {
   isCustomerEditable,
   itemPrice,
+  limitInitialTextInput,
   orderStateLabel,
   orderTotals,
   type OrderView,
@@ -884,13 +885,20 @@ export function OrderDetail({
                       {product.customization.initialEnabled && (
                         <Field label="이니셜" full>
                           <input
+                            maxLength={40}
+                            placeholder="영문 대·소문자, 공백 제외 최대 20자"
                             value={item.initialText}
                             onChange={(event) =>
                               updateItem(index, {
-                                initialText: event.target.value,
+                                initialText: limitInitialTextInput(
+                                  event.target.value,
+                                ),
                               })
                             }
                           />
+                          <span className="field__hint">
+                            공백 제외 {item.initialText.replaceAll(" ", "").length}/20자
+                          </span>
                         </Field>
                       )}
                       {product.customization.stickerEnabled && (

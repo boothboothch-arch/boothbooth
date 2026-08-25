@@ -128,6 +128,20 @@ export function isCustomerEditable(state: OrderView['orderState']) {
   return state === 'payment_pending' || state === 'payment_confirmed'
 }
 
+export function limitInitialTextInput(value: string) {
+  let nonSpaceCount = 0
+  let result = ''
+  for (const character of value) {
+    if (character !== ' ') {
+      if (nonSpaceCount >= 20) continue
+      nonSpaceCount += 1
+    }
+    if (result.length >= 40) break
+    result += character
+  }
+  return result
+}
+
 export function itemPrice(product: ProductConfig, selectedOptionValueIds: string[] = []) {
   const selected = new Set(selectedOptionValueIds)
   return product.unitPrice + product.optionGroups.flatMap((group) => group.values).reduce((sum, option) => sum + (selected.has(option.id) ? option.priceDelta : 0), 0)

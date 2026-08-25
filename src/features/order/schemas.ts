@@ -12,7 +12,7 @@ export const orderItemSchema = z.object({
   productId: databaseId,
   itemType: z.enum(['shirt', 'bag']),
   selectedOptionValueIds: z.array(z.uuid()).max(30),
-  initialText: z.string().trim().max(20).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 10, '이니셜은 공백 제외 10자까지 입력할 수 있어요.'),
+  initialText: z.string().trim().max(40).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= 20, '이니셜은 공백 제외 20자까지 입력할 수 있어요.'),
   stickerSelected: z.boolean(),
   stickerCategories: z.string().trim().max(200),
   extraRequest: optionalNote,

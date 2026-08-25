@@ -189,8 +189,8 @@ export default async function HomePage() {
                 <h3>상품별 커스텀</h3>
               </div>
               <p className="home-guide__description">
-                이름의 영문자마다 가장 잘 어울리는 패치 느낌과 대·소문자 배열,
-                색감을 고려해 부스부스만의 디자인으로 제작합니다.
+                스펠링의 대소문자 규칙없이, 가장 잘 어울리는 패치 느낌과 색감을
+                고려하여 자유롭게 제작합니다.
               </p>
               <ul className="home-guide__list">
                 <li>별도의 디자인 시안은 제공되지 않아요</li>

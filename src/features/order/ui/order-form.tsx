@@ -19,6 +19,7 @@ import {
 import { Button } from "@/shared/ui/button";
 import {
   itemPrice,
+  limitInitialTextInput,
   orderTotals,
   type PostalCodeRange,
   type ProductConfig,
@@ -678,8 +679,8 @@ export function OrderForm({
           <div className="custom-production-note">
             <strong>부스부스 커스텀 제작 안내</strong>
             <p>
-              이름의 영문자마다 가장 잘 어울리는 패치 느낌, 대·소문자 배열, 색감
-              등을 고려하여 디자인해 제작합니다. 별도의 디자인 시안은 제공되지
+              스펠링의 대소문자 규칙없이, 가장 잘 어울리는 패치 느낌과 색감을
+              고려하여 자유롭게 제작합니다. 별도의 디자인 시안은 제공되지
               않으며, 부스부스만의 감성과 스타일을 믿고 맡겨주시면 가장 잘
               어울리는 조합을 찾아 부스부스만의 디자인으로 예쁘게
               완성해드립니다.
@@ -802,11 +803,24 @@ export function OrderForm({
                       >
                         <input
                           aria-required="true"
-                          maxLength={20}
+                          maxLength={40}
                           autoCapitalize="off"
-                          placeholder="영문 대·소문자, 공백 제외 최대 10자"
+                          placeholder="영문 대·소문자, 공백 제외 최대 20자"
+                          onInput={(event) => {
+                            event.currentTarget.value = limitInitialTextInput(
+                              event.currentTarget.value,
+                            );
+                          }}
                           {...form.register(`items.${index}.initialText`)}
                         />
+                        <span className="field__hint">
+                          공백 제외{" "}
+                          {
+                            (current.initialText ?? "").replaceAll(" ", "")
+                              .length
+                          }
+                          /20자
+                        </span>
                       </Field>
                     )}
                     {product.optionGroups

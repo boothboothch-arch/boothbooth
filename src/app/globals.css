@@ -3251,6 +3251,21 @@ textarea:focus-visible {
   color: var(--ink);
   font-size: 12px;
 }
+.admin-custom-item__title-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+.admin-custom-item__title-actions .button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+.admin-custom-item--editing {
+  background: #f5f8f5;
+  box-shadow: inset 0 0 0 1px rgba(8, 124, 61, 0.2);
+}
 .admin-custom-item .info-list {
   background: white;
   border-radius: 7px;
@@ -3258,6 +3273,78 @@ textarea:focus-visible {
 .admin-custom-item .info-list > div {
   padding-right: 10px;
   padding-left: 10px;
+}
+.admin-order-item-editor {
+  display: grid;
+  gap: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.admin-order-item-editor .form-grid {
+  gap: 13px;
+}
+.admin-item-edit-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.admin-item-edit-warning svg {
+  flex: 0 0 auto;
+}
+.admin-item-price-change {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.admin-item-price-change strong {
+  color: var(--ink);
+}
+.admin-item-price-change small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  text-align: right;
+}
+.admin-item-price-change--changed {
+  border-color: #e6c66d;
+  background: var(--yellow-soft);
+}
+.admin-item-price-change--changed small {
+  color: #765800;
+  font-weight: 700;
+}
+.admin-item-change-history {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+.admin-item-change-history summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.admin-item-change-history ul {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-item-change-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-item-change-history strong {
+  color: var(--ink);
 }
 .admin-image-grid {
   display: grid;

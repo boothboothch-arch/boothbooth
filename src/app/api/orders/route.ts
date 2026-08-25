@@ -10,7 +10,7 @@ function mapSubmitError(message: string) {
   if (message.includes('DUPLICATE_ORDER')) return new ApiProblem('DUPLICATE_ORDER', '이미 처리된 주문 요청이에요.', 409)
   if (message.includes('INVALID_OPTION')) return new ApiProblem('INVALID_OPTION', '현재 선택할 수 없는 상품 옵션이 포함되어 있어요.', 409)
   if (message.includes('PRODUCT_SOLD_OUT')) return new ApiProblem('PRODUCT_SOLD_OUT', '선택한 한정 상품이 품절되었어요. 주문서를 새로 확인해주세요.', 409)
-  if (message.includes('INVALID_INITIAL')) return new ApiProblem('INVALID_INITIAL', '이니셜은 영문 대·소문자로 공백 제외 10자까지 입력해주세요.', 422)
+  if (message.includes('INVALID_INITIAL')) return new ApiProblem('INVALID_INITIAL', '이니셜은 영문 대·소문자로 공백 제외 20자까지 입력해주세요.', 422)
   if (message.includes('INVALID_POSTAL_CODE')) return new ApiProblem('INVALID_POSTAL_CODE', '배송지 우편번호를 확인해주세요.', 422)
   if (message.includes('TOO_MANY_IMAGES')) return new ApiProblem('TOO_MANY_IMAGES', '첨부 가능한 이미지 수를 초과했어요.', 422)
   if (message.includes('INVALID_IMAGE')) return new ApiProblem('INVALID_IMAGE', '업로드된 참고 이미지를 확인하지 못했어요. 다시 첨부해주세요.', 422)
