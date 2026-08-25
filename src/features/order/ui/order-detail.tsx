@@ -305,7 +305,7 @@ export function OrderDetail({
           {isCustomerEditable(order.orderState) && !editing && (
             <div className="order-edit-entry">
               <p>
-                <strong>제작 중</strong>으로 변경되면 주문 수정 불가
+                <strong>입금 완료</strong>로 변경되면 주문 수정 불가
               </p>
               <Button type="button" variant="secondary" onClick={startEditing}>
                 <Pencil size={13} /> 주문 수정

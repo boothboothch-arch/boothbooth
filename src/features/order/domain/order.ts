@@ -126,7 +126,7 @@ export const paymentStateLabel: Record<OrderView['paymentState'], string> = {
 }
 
 export function isCustomerEditable(state: OrderView['orderState']) {
-  return state === 'payment_pending' || state === 'payment_confirmed'
+  return state === 'payment_pending'
 }
 
 export function limitInitialTextInput(value: string) {

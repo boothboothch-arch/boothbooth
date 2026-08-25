@@ -67,9 +67,9 @@ describe('pricing and editing policy', () => {
     expect(orderTotals(products, Array.from({ length: 4 }, () => ({ productId: products[1].id })), 'shipping', delivery)).toMatchObject({ baseShippingFee: 0, remoteAreaSurcharge: 3000, shippingFee: 3000, total: 83000, deliveryZone: 'remote' })
     expect(orderTotals(products, [{ productId: products[1].id }], 'pickup', delivery)).toMatchObject({ remoteAreaSurcharge: 0, shippingFee: 0, deliveryZone: 'standard' })
   })
-  it('입금 대기와 입금 완료 상태에서만 고객이 수정할 수 있다', () => {
+  it('입금 대기 상태에서만 고객이 수정할 수 있다', () => {
     expect(isCustomerEditable('payment_pending')).toBe(true)
-    expect(isCustomerEditable('payment_confirmed')).toBe(true)
+    expect(isCustomerEditable('payment_confirmed')).toBe(false)
     expect(isCustomerEditable('preparing')).toBe(false)
     expect(isCustomerEditable('completed')).toBe(false)
   })
