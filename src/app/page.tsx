@@ -31,7 +31,12 @@ type ProductRow = {
     id: string;
     name: string;
     active: boolean;
-    values: { id: string; label: string; priceDelta: number; active: boolean }[];
+    values: {
+      id: string;
+      label: string;
+      priceDelta: number;
+      active: boolean;
+    }[];
   }[];
 };
 
@@ -63,7 +68,9 @@ export default async function HomePage() {
           .order("created_at"),
         client
           .from("sales")
-          .select("shipping_fee,free_shipping_threshold,remote_area_surcharge,kakao_channel_url")
+          .select(
+            "shipping_fee,free_shipping_threshold,remote_area_surcharge,kakao_channel_url",
+          )
           .eq("id", status.saleId)
           .maybeSingle(),
       ]);
@@ -157,13 +164,20 @@ export default async function HomePage() {
                     <div key={product.name}>
                       <dt>
                         {product.name}
-                        {product.stock_limit !== null && <small>한정 {product.stock_limit}개</small>}
+                        {product.stock_limit !== null && (
+                          <small>한정 {product.stock_limit}개</small>
+                        )}
                       </dt>
                       <dd>{product.unit_price.toLocaleString("ko-KR")}원</dd>
                     </div>
                   );
                 })}
-                {products.length === 0 && <div><dt>판매 상품 준비 중</dt><dd>—</dd></div>}
+                {products.length === 0 && (
+                  <div>
+                    <dt>판매 상품 준비 중</dt>
+                    <dd>—</dd>
+                  </div>
+                )}
               </dl>
             </article>
 
@@ -219,8 +233,11 @@ export default async function HomePage() {
                 <li>주문 후 안내된 계좌로 1시간 이내 입금</li>
                 <li>커스텀 상품은 선입금 확인 후 제작 진행</li>
                 <li>주문 후 10~14일 이내 발송</li>
-                <li>제작 시작 이후에는 교환 및 환불이 어려워요</li>
-                <li>제작 불량 또는 주문과 다른 상품은 무료 재제작·교환</li>
+                <li>제작 시작 이후에는 교환 및 환불 불가</li>
+                <li>
+                  의류 불량 또는 주문 내용과 다르게 제작된 상품은 긴급 제작으로
+                  교환
+                </li>
               </ul>
             </article>
           </div>
@@ -230,9 +247,7 @@ export default async function HomePage() {
               <ShoppingBag size={17} />
               <p>
                 <strong>함께 주문</strong>
-                <span>
-                  여러 상품을 필요한 만큼 한 주문에 담을 수 있어요.
-                </span>
+                <span>여러 상품을 필요한 만큼 한 주문에 담을 수 있어요.</span>
               </p>
             </div>
             <div>
