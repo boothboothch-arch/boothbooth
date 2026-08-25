@@ -983,8 +983,11 @@ textarea:focus-visible {
 }
 .home-guide__price-list,
 .home-guide__list {
-  margin: auto 0 0;
+  margin: 24px 0 0;
   padding: 0;
+}
+.home-guide__card--accent .home-guide__price-list {
+  margin-top: 90px;
 }
 .home-guide__price-list > div {
   display: flex;
@@ -1011,9 +1014,10 @@ textarea:focus-visible {
 .home-guide__price-list dd {
   margin: 0;
   color: white;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 750;
   letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 .home-guide__list {
   list-style: none;
@@ -2813,6 +2817,9 @@ textarea:focus-visible {
 .compact-grid {
   gap: 12px;
 }
+.sticker-selection-fields {
+  margin-top: 12px;
+}
 .sticker-toggle {
   display: flex;
   align-items: flex-start;
@@ -3567,6 +3574,9 @@ textarea:focus-visible {
     min-height: 250px;
     padding: 25px;
   }
+  .home-guide__card--accent .home-guide__price-list {
+    margin-top: 24px;
+  }
   .home-guide__notes {
     grid-template-columns: 1fr;
     margin-top: 36px;
@@ -3655,7 +3665,7 @@ textarea:focus-visible {
     height: 38px;
   }
   .home-guide__price-list dd {
-    font-size: 16px;
+    font-size: 14px;
   }
   .home-guide__list li {
     font-size: 12px;

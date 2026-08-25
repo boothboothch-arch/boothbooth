@@ -153,19 +153,11 @@ export default async function HomePage() {
               </div>
               <dl className="home-guide__price-list">
                 {products.map((product) => {
-                  const surcharges = (product.option_groups ?? [])
-                    .filter((group) => group.active)
-                    .flatMap((group) =>
-                      (group.values ?? [])
-                        .filter((value) => value.active && value.priceDelta !== 0)
-                        .map((value) => `${value.label} ${value.priceDelta > 0 ? "+" : ""}${value.priceDelta.toLocaleString("ko-KR")}원`),
-                    );
                   return (
                     <div key={product.name}>
                       <dt>
                         {product.name}
                         {product.stock_limit !== null && <small>한정 {product.stock_limit}개</small>}
-                        {surcharges.length > 0 && <small>{surcharges.join(" · ")}</small>}
                       </dt>
                       <dd>{product.unit_price.toLocaleString("ko-KR")}원</dd>
                     </div>
@@ -213,7 +205,6 @@ export default async function HomePage() {
                   제주·도서산간은 무료배송 여부와 관계없이{" "}
                   {remoteAreaSurcharge.toLocaleString("ko-KR")}원 추가
                 </li>
-                <li>직접 픽업은 배송비 없이 날짜·시간 선택</li>
               </ul>
             </article>
 
@@ -227,6 +218,7 @@ export default async function HomePage() {
               <ul className="home-guide__list">
                 <li>주문 후 안내된 계좌로 1시간 이내 입금</li>
                 <li>커스텀 상품은 선입금 확인 후 제작 진행</li>
+                <li>주문 후 10~14일 이내 발송</li>
                 <li>제작 시작 이후에는 교환 및 환불이 어려워요</li>
                 <li>제작 불량 또는 주문과 다른 상품은 무료 재제작·교환</li>
               </ul>

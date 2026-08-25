@@ -69,11 +69,17 @@ function remainingLabel(milliseconds: number) {
 }
 
 function itemDefaults(product: ProductConfig): OrderFormInput["items"][number] {
-  const selectedOptionValueIds = product.optionGroups.filter((group) => group.active).flatMap((group) => {
-    const activeValues = group.values.filter((option) => option.active).sort((a, b) => a.sortOrder - b.sortOrder);
-    const minimum = group.required ? Math.max(1, group.minSelections) : group.minSelections;
-    return activeValues.slice(0, minimum).map((option) => option.id);
-  });
+  const selectedOptionValueIds = product.optionGroups
+    .filter((group) => group.active)
+    .flatMap((group) => {
+      const activeValues = group.values
+        .filter((option) => option.active)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      const minimum = group.required
+        ? Math.max(1, group.minSelections)
+        : group.minSelections;
+      return activeValues.slice(0, minimum).map((option) => option.id);
+    });
   return {
     clientId: crypto.randomUUID(),
     productId: product.id,
@@ -167,7 +173,11 @@ export function OrderForm({
   remoteAreaSurcharge,
   remotePostalRanges,
 }: Props) {
-  const firstProduct = products.find((product) => product.remainingStock === null || product.remainingStock > 0) ?? products[0];
+  const firstProduct =
+    products.find(
+      (product) =>
+        product.remainingStock === null || product.remainingStock > 0,
+    ) ?? products[0];
   const [now, setNow] = useState(() => Date.parse(serverNow));
   const [idleWarning, setIdleWarning] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -417,27 +427,47 @@ export function OrderForm({
     items.remove(index);
   }
 
-  function selectOption(index: number, product: ProductConfig, groupId: string, valueId: string, checked: boolean) {
-    const current = form.getValues(`items.${index}.selectedOptionValueIds`) ?? [];
+  function selectOption(
+    index: number,
+    product: ProductConfig,
+    groupId: string,
+    valueId: string,
+    checked: boolean,
+  ) {
+    const current =
+      form.getValues(`items.${index}.selectedOptionValueIds`) ?? [];
     const group = product.optionGroups.find((entry) => entry.id === groupId);
     if (!group) return;
     const groupValueIds = new Set(group.values.map((option) => option.id));
     const withoutGroup = current.filter((id) => !groupValueIds.has(id));
     const withinGroup = current.filter((id) => groupValueIds.has(id));
-    const next = group.selectionType === "single"
-      ? [...withoutGroup, valueId]
-      : checked
-        ? [...withoutGroup, ...new Set([...withinGroup, valueId])]
-        : [...withoutGroup, ...withinGroup.filter((id) => id !== valueId)];
-    form.setValue(`items.${index}.selectedOptionValueIds`, next, { shouldDirty: true, shouldValidate: true });
+    const next =
+      group.selectionType === "single"
+        ? [...withoutGroup, valueId]
+        : checked
+          ? [...withoutGroup, ...new Set([...withinGroup, valueId])]
+          : [...withoutGroup, ...withinGroup.filter((id) => id !== valueId)];
+    form.setValue(`items.${index}.selectedOptionValueIds`, next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   }
 
-  function clearOptionGroup(index: number, product: ProductConfig, groupId: string) {
-    const current = form.getValues(`items.${index}.selectedOptionValueIds`) ?? [];
+  function clearOptionGroup(
+    index: number,
+    product: ProductConfig,
+    groupId: string,
+  ) {
+    const current =
+      form.getValues(`items.${index}.selectedOptionValueIds`) ?? [];
     const group = product.optionGroups.find((entry) => entry.id === groupId);
     if (!group) return;
     const groupValueIds = new Set(group.values.map((option) => option.id));
-    form.setValue(`items.${index}.selectedOptionValueIds`, current.filter((id) => !groupValueIds.has(id)), { shouldDirty: true, shouldValidate: true });
+    form.setValue(
+      `items.${index}.selectedOptionValueIds`,
+      current.filter((id) => !groupValueIds.has(id)),
+      { shouldDirty: true, shouldValidate: true },
+    );
   }
 
   async function uploadImages(value: OrderFormInput) {
@@ -647,21 +677,37 @@ export function OrderForm({
           />
           <div className="custom-production-note">
             <strong>부스부스 커스텀 제작 안내</strong>
-            <p>이름의 영문자마다 가장 잘 어울리는 패치 느낌, 대·소문자 배열, 색감 등을 고려하여 디자인해 제작합니다. 별도의 디자인 시안은 제공되지 않으며, 부스부스만의 감성과 스타일을 믿고 맡겨주시면 가장 잘 어울리는 조합을 찾아 부스부스만의 디자인으로 예쁘게 완성해드립니다.</p>
+            <p>
+              이름의 영문자마다 가장 잘 어울리는 패치 느낌, 대·소문자 배열, 색감
+              등을 고려하여 디자인해 제작합니다. 별도의 디자인 시안은 제공되지
+              않으며, 부스부스만의 감성과 스타일을 믿고 맡겨주시면 가장 잘
+              어울리는 조합을 찾아 부스부스만의 디자인으로 예쁘게
+              완성해드립니다.
+            </p>
           </div>
           <div className="product-picker-list">
             {products.map((product) => {
-              const inDraft = watchedItems.filter((item) => item.productId === product.id).length;
-              const unavailable = product.remainingStock !== null && inDraft >= product.remainingStock;
-              const stockTone = product.remainingStock === 0
-                ? "sold-out"
-                : product.remainingStock !== null && product.remainingStock <= 10
-                  ? "low"
-                  : "normal";
+              const inDraft = watchedItems.filter(
+                (item) => item.productId === product.id,
+              ).length;
+              const unavailable =
+                product.remainingStock !== null &&
+                inDraft >= product.remainingStock;
+              const stockTone =
+                product.remainingStock === 0
+                  ? "sold-out"
+                  : product.remainingStock !== null &&
+                      product.remainingStock <= 10
+                    ? "low"
+                    : "normal";
               return (
                 <div className="product-picker-row" key={product.id}>
                   <span className="product-picker-row__icon" aria-hidden="true">
-                    {product.type === "shirt" ? <Shirt size={17} /> : <ShoppingBag size={17} />}
+                    {product.type === "shirt" ? (
+                      <Shirt size={17} />
+                    ) : (
+                      <ShoppingBag size={17} />
+                    )}
                   </span>
                   <div className="product-picker-row__info">
                     <div>
@@ -676,7 +722,10 @@ export function OrderForm({
                         </span>
                       )}
                     </div>
-                    <small>{product.unitPrice.toLocaleString("ko-KR")}원{inDraft > 0 && ` · 현재 ${inDraft}개 담음`}</small>
+                    <small>
+                      {product.unitPrice.toLocaleString("ko-KR")}원
+                      {inDraft > 0 && ` · 현재 ${inDraft}개 담음`}
+                    </small>
                   </div>
                   <Button
                     type="button"
@@ -731,155 +780,270 @@ export function OrderForm({
                     type="hidden"
                     {...form.register(`items.${index}.itemType`)}
                   />
-                  <input type="hidden" {...form.register(`items.${index}.selectedOptionValueIds`)} />
-                  {product.description && <p className="custom-item-card__description">{product.description}</p>}
+                  <input
+                    type="hidden"
+                    {...form.register(`items.${index}.selectedOptionValueIds`)}
+                  />
+                  {product.description && (
+                    <p className="custom-item-card__description">
+                      {product.description}
+                    </p>
+                  )}
                   <div className="form-grid compact-grid">
                     {product.customization.initialEnabled && (
-                    <Field
-                      label="이니셜"
-                      error={
-                        form.formState.errors.items?.[index]?.initialText
-                          ?.message
-                      }
-                      full
-                      required
-                    >
-                      <input
-                        aria-required="true"
-                        maxLength={20}
-                        autoCapitalize="off"
-                        placeholder="영문 대·소문자, 공백 제외 최대 10자"
-                        {...form.register(`items.${index}.initialText`)}
-                      />
-                    </Field>
+                      <Field
+                        label="이니셜"
+                        error={
+                          form.formState.errors.items?.[index]?.initialText
+                            ?.message
+                        }
+                        full
+                        required
+                      >
+                        <input
+                          aria-required="true"
+                          maxLength={20}
+                          autoCapitalize="off"
+                          placeholder="영문 대·소문자, 공백 제외 최대 10자"
+                          {...form.register(`items.${index}.initialText`)}
+                        />
+                      </Field>
                     )}
-                    {product.optionGroups.filter((group) => group.active).sort((a, b) => a.sortOrder - b.sortOrder).map((group) => {
-                      const selected = new Set(current.selectedOptionValueIds ?? []);
-                      const activeValues = group.values.filter((option) => option.active).sort((a, b) => a.sortOrder - b.sortOrder);
-                      const selectedCount = activeValues.filter((option) => selected.has(option.id)).length;
-                      const minimum = group.required ? Math.max(1, group.minSelections) : group.minSelections;
-                      return <fieldset className="field option-choice-field" key={group.id}>
-                        <legend className="field__label">{group.name}{group.required && <RequiredMark />}</legend>
-                        {group.selectionType === "single" ? (
-                          <select
-                            aria-label={group.name}
-                            value={activeValues.find((option) => selected.has(option.id))?.id ?? ""}
-                            onChange={(event) => event.target.value
-                              ? selectOption(index, product, group.id, event.target.value, true)
-                              : clearOptionGroup(index, product, group.id)}
+                    {product.optionGroups
+                      .filter((group) => group.active)
+                      .sort((a, b) => a.sortOrder - b.sortOrder)
+                      .map((group) => {
+                        const selected = new Set(
+                          current.selectedOptionValueIds ?? [],
+                        );
+                        const activeValues = group.values
+                          .filter((option) => option.active)
+                          .sort((a, b) => a.sortOrder - b.sortOrder);
+                        const selectedCount = activeValues.filter((option) =>
+                          selected.has(option.id),
+                        ).length;
+                        const minimum = group.required
+                          ? Math.max(1, group.minSelections)
+                          : group.minSelections;
+                        return (
+                          <fieldset
+                            className="field option-choice-field"
+                            key={group.id}
                           >
-                            {minimum === 0 ? <option value="">선택 안 함</option> : <option value="" disabled>선택해주세요</option>}
-                            {activeValues.map((option) => <option value={option.id} key={option.id}>{option.label}{option.priceDelta > 0 ? ` (+${option.priceDelta.toLocaleString("ko-KR")}원)` : ""}</option>)}
-                          </select>
-                        ) : (
-                          <div className="option-choice-list">
-                            {activeValues.map((option) => <label key={option.id}>
-                              <input type="checkbox" name={`item-${index}-group-${group.id}`} checked={selected.has(option.id)} disabled={!selected.has(option.id) && selectedCount >= group.maxSelections} onChange={(event) => selectOption(index, product, group.id, option.id, event.target.checked)} />
-                              <span><strong>{option.label}</strong>{option.priceDelta > 0 && <small>+{option.priceDelta.toLocaleString("ko-KR")}원</small>}</span>
-                            </label>)}
-                          </div>
-                        )}
-                      </fieldset>;
-                    })}
+                            <legend className="field__label">
+                              {group.name}
+                              {group.required && <RequiredMark />}
+                            </legend>
+                            {group.selectionType === "single" ? (
+                              <select
+                                aria-label={group.name}
+                                value={
+                                  activeValues.find((option) =>
+                                    selected.has(option.id),
+                                  )?.id ?? ""
+                                }
+                                onChange={(event) =>
+                                  event.target.value
+                                    ? selectOption(
+                                        index,
+                                        product,
+                                        group.id,
+                                        event.target.value,
+                                        true,
+                                      )
+                                    : clearOptionGroup(index, product, group.id)
+                                }
+                              >
+                                {minimum === 0 ? (
+                                  <option value="">선택 안 함</option>
+                                ) : (
+                                  <option value="" disabled>
+                                    선택해주세요
+                                  </option>
+                                )}
+                                {activeValues.map((option) => (
+                                  <option value={option.id} key={option.id}>
+                                    {option.label}
+                                    {option.priceDelta > 0
+                                      ? ` (+${option.priceDelta.toLocaleString("ko-KR")}원)`
+                                      : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="option-choice-list">
+                                {activeValues.map((option) => (
+                                  <label key={option.id}>
+                                    <input
+                                      type="checkbox"
+                                      name={`item-${index}-group-${group.id}`}
+                                      checked={selected.has(option.id)}
+                                      disabled={
+                                        !selected.has(option.id) &&
+                                        selectedCount >= group.maxSelections
+                                      }
+                                      onChange={(event) =>
+                                        selectOption(
+                                          index,
+                                          product,
+                                          group.id,
+                                          option.id,
+                                          event.target.checked,
+                                        )
+                                      }
+                                    />
+                                    <span>
+                                      <strong>{option.label}</strong>
+                                      {option.priceDelta > 0 && (
+                                        <small>
+                                          +
+                                          {option.priceDelta.toLocaleString(
+                                            "ko-KR",
+                                          )}
+                                          원
+                                        </small>
+                                      )}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </fieldset>
+                        );
+                      })}
                   </div>
-                  {product.customization.stickerEnabled && <>
-                  <label className="sticker-toggle">
-                    <input
-                      type="checkbox"
-                      {...form.register(`items.${index}.stickerSelected`)}
-                    />
-                    <span>
-                      <strong>랜덤 이니셜 스티커 선택</strong>
-                      <small>말씀해주신 카테고리를 바탕으로 이니셜과 가장 잘 어울리는 디자인을 랜덤 구성하여 제작합니다.</small>
-                    </span>
-                  </label>
-                  {current.stickerSelected && (
-                    <Field
-                      label="원하는 스티커 카테고리"
-                      error={
-                        form.formState.errors.items?.[index]?.stickerCategories
-                          ?.message
-                      }
-                    >
-                      <input
-                        placeholder="자동차, 공룡, 무지개처럼 3~5개 권장"
-                        {...form.register(`items.${index}.stickerCategories`)}
-                      />
-                    </Field>
-                  )}
-                  </>}
-                  {(product.customization.referenceImagesEnabled || product.customization.extraRequestEnabled) && (
-                  <section className="preference-details preference-details--static">
-                    <div className="preference-details__heading">
-                      <strong>디자인 참고사항</strong>
-                      <span>선택</span>
-                    </div>
-                    {product.customization.referenceImagesEnabled && <div
-                      className={`image-picker ${imageErrors[current.clientId] ? "image-picker--error" : ""}`}
-                    >
-                      <div>
-                        <strong>
-                          <Camera size={15} /> 디자인 참고 이미지
-                        </strong>
-                        <span>
-                          부스부스 인스타그램에 올라온 디자인 중 마음에 드는 스타일이 있다면 사진을 첨부해주세요. 디자인할 때 참고하여 반영해드립니다. 상품당 최대 3장까지 첨부할 수 있어요.
+                  {product.customization.stickerEnabled && (
+                    <div className="form-grid compact-grid sticker-selection-fields">
+                      <Field label="랜덤 이니셜 스티커" full>
+                        <select
+                          value={
+                            current.stickerSelected ? "selected" : "unselected"
+                          }
+                          onChange={(event) => {
+                            const selected = event.target.value === "selected";
+                            form.setValue(
+                              `items.${index}.stickerSelected`,
+                              selected,
+                              { shouldDirty: true },
+                            );
+                            if (!selected)
+                              form.setValue(
+                                `items.${index}.stickerCategories`,
+                                "",
+                                { shouldDirty: true },
+                              );
+                          }}
+                        >
+                          <option value="unselected">미선택</option>
+                          <option value="selected">선택</option>
+                        </select>
+                        <span className="field__hint">
+                          말씀해주신 카테고리를 바탕으로 이니셜과 가장 잘
+                          어울리는 디자인을 랜덤 구성하여 제작합니다.
                         </span>
-                      </div>
-                      <div className="image-grid">
-                        {itemImages.map((image) => (
-                          <figure key={image.localId}>
-                            <img
-                              src={image.preview}
-                              alt="업로드할 디자인 참고 이미지 미리보기"
-                            />
-                            <button
-                              type="button"
-                              aria-label="디자인 참고 이미지 삭제"
-                              onClick={() =>
-                                removeImage(current.clientId, image.localId)
-                              }
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </figure>
-                        ))}
-                        {itemImages.length < 3 && totalImages < 20 && (
-                          <label className="image-add">
-                            <ImagePlus size={20} />
-                            <span>사진 추가</span>
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-                              multiple
-                              onChange={(event) => {
-                                void addImages(
-                                  current.clientId,
-                                  event.target.files,
-                                );
-                                event.target.value = "";
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-                      {imageErrors[current.clientId] && (
-                        <p className="image-picker__error" role="alert">
-                          {imageErrors[current.clientId]}
-                        </p>
+                      </Field>
+                      {current.stickerSelected && (
+                        <Field
+                          label="원하는 스티커 카테고리"
+                          error={
+                            form.formState.errors.items?.[index]
+                              ?.stickerCategories?.message
+                          }
+                          full
+                        >
+                          <input
+                            placeholder="자동차, 공룡, 무지개처럼 3~5개 권장"
+                            {...form.register(
+                              `items.${index}.stickerCategories`,
+                            )}
+                          />
+                        </Field>
                       )}
-                    </div>}
-                    {product.customization.extraRequestEnabled && <Field label="기타 요청사항" full>
-                      <textarea
-                        placeholder="추가로 참고할 내용을 입력해주세요."
-                        {...form.register(`items.${index}.extraRequest`)}
-                      />
-                    </Field>}
-                  </section>
+                    </div>
+                  )}
+                  {(product.customization.referenceImagesEnabled ||
+                    product.customization.extraRequestEnabled) && (
+                    <section className="preference-details preference-details--static">
+                      <div className="preference-details__heading">
+                        <strong>디자인 참고사항</strong>
+                        <span>선택</span>
+                      </div>
+                      {product.customization.referenceImagesEnabled && (
+                        <div
+                          className={`image-picker ${imageErrors[current.clientId] ? "image-picker--error" : ""}`}
+                        >
+                          <div>
+                            <strong>
+                              <Camera size={15} /> 디자인 참고 이미지
+                            </strong>
+                            <span>
+                              부스부스 인스타그램에 올라온 디자인 중 마음에 드는
+                              스타일이 있다면 사진을 첨부해주세요. 디자인할 때
+                              참고하여 반영해드립니다. 상품당 최대 3장까지
+                              첨부할 수 있어요.
+                            </span>
+                          </div>
+                          <div className="image-grid">
+                            {itemImages.map((image) => (
+                              <figure key={image.localId}>
+                                <img
+                                  src={image.preview}
+                                  alt="업로드할 디자인 참고 이미지 미리보기"
+                                />
+                                <button
+                                  type="button"
+                                  aria-label="디자인 참고 이미지 삭제"
+                                  onClick={() =>
+                                    removeImage(current.clientId, image.localId)
+                                  }
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </figure>
+                            ))}
+                            {itemImages.length < 3 && totalImages < 20 && (
+                              <label className="image-add">
+                                <ImagePlus size={20} />
+                                <span>사진 추가</span>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                                  multiple
+                                  onChange={(event) => {
+                                    void addImages(
+                                      current.clientId,
+                                      event.target.files,
+                                    );
+                                    event.target.value = "";
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                          {imageErrors[current.clientId] && (
+                            <p className="image-picker__error" role="alert">
+                              {imageErrors[current.clientId]}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {product.customization.extraRequestEnabled && (
+                        <Field label="기타 요청사항" full>
+                          <textarea
+                            placeholder="추가로 참고할 내용을 입력해주세요."
+                            {...form.register(`items.${index}.extraRequest`)}
+                          />
+                        </Field>
+                      )}
+                    </section>
                   )}
                   <div className="item-price">
                     <span>상품 금액</span>
                     <strong>
-                      {itemPrice(product, current.selectedOptionValueIds).toLocaleString("ko-KR")}
+                      {itemPrice(
+                        product,
+                        current.selectedOptionValueIds,
+                      ).toLocaleString("ko-KR")}
                       원
                     </strong>
                   </div>
@@ -917,7 +1081,9 @@ export function OrderForm({
                 <small>
                   {freeShippingThreshold.toLocaleString("ko-KR")}원 미만 배송비{" "}
                   {shippingFee.toLocaleString("ko-KR")}원
-                  <br />제주·도서산간은 {remoteAreaSurcharge.toLocaleString("ko-KR")}원 추가
+                  <br />
+                  제주·도서산간은 {remoteAreaSurcharge.toLocaleString("ko-KR")}
+                  원 추가
                 </small>
               </span>
             </label>
@@ -929,8 +1095,8 @@ export function OrderForm({
               />
               <span>
                 <ShoppingBag size={19} />
-                <strong>직접 픽업</strong>
-                <small>배송비 무료</small>
+                <strong>매장 픽업</strong>
+                <small>제작 완료 후 개별 연락드립니다.</small>
               </span>
             </label>
           </div>
@@ -944,7 +1110,10 @@ export function OrderForm({
                 </span>
                 {postalCode && baseAddress ? (
                   <div className="address-result-card">
-                    <span className="address-result-card__icon" aria-hidden="true">
+                    <span
+                      className="address-result-card__icon"
+                      aria-hidden="true"
+                    >
                       <MapPin size={18} />
                     </span>
                     <div className="address-result-card__body">
@@ -999,8 +1168,10 @@ export function OrderForm({
               )}
               {totals.deliveryZone === "remote" && (
                 <div className="notice notice--warning" role="status">
-                  <strong>제주·도서산간 추가 배송비가 적용됩니다.</strong><br />
-                  무료배송 기준 충족 여부와 관계없이 {remoteAreaSurcharge.toLocaleString("ko-KR")}원이 추가됩니다.
+                  <strong>제주·도서산간 추가 배송비가 적용됩니다.</strong>
+                  <br />
+                  무료배송 기준 충족 여부와 관계없이{" "}
+                  {remoteAreaSurcharge.toLocaleString("ko-KR")}원이 추가됩니다.
                 </div>
               )}
             </div>
@@ -1063,7 +1234,9 @@ export function OrderForm({
           {totals.remoteAreaSurcharge > 0 && (
             <div className="summary-line">
               <span>제주·도서산간 추가 배송비</span>
-              <strong>+{totals.remoteAreaSurcharge.toLocaleString("ko-KR")}원</strong>
+              <strong>
+                +{totals.remoteAreaSurcharge.toLocaleString("ko-KR")}원
+              </strong>
             </div>
           )}
           <div className="summary-line summary-line--total">
