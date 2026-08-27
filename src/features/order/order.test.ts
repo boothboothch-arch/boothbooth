@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isCustomerEditable, limitInitialTextInput, orderStateOptions, orderStateTone, orderTotals, type ProductConfig } from './domain/order'
-import { orderFormSchema, orderLookupSchema } from './schemas'
+import { customerOrderUpdateSchema, orderFormSchema, orderLookupSchema } from './schemas'
 
 const products: ProductConfig[] = [
   { id: '20000000-0000-0000-0000-000000000001', type: 'shirt', name: '이니셜 티셔츠', description: '', unitPrice: 33000, stockLimit: null, remainingStock: null, customization: { initialEnabled: true, stickerEnabled: true, referenceImagesEnabled: true, extraRequestEnabled: true }, optionGroups: [{ id: '30000000-0000-4000-8000-000000000001', name: '사이즈', selectionType: 'single', required: true, minSelections: 1, maxSelections: 1, sortOrder: 0, active: true, values: [{ id: '40000000-0000-4000-8000-000000000001', label: 'M', priceDelta: 0, sortOrder: 0, active: true }, { id: '40000000-0000-4000-8000-000000000002', label: '2XL', priceDelta: 2000, sortOrder: 1, active: true }] }] },
@@ -42,6 +42,31 @@ describe('order validation', () => {
   it('주문번호 형식을 엄격하게 확인한다', () => {
     expect(orderLookupSchema.safeParse({ orderNumber: 'BB-0123456789', phoneLast4: '1234' }).success).toBe(true)
     expect(orderLookupSchema.safeParse({ orderNumber: 'BB-OOOOOOOOOO', phoneLast4: '1234' }).success).toBe(false)
+  })
+  it('고객 수정에서도 상품별·주문별 이미지 제한을 적용한다', () => {
+    const item = {
+      id: crypto.randomUUID(),
+      productId: products[0].id,
+      itemType: 'shirt' as const,
+      selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'],
+      initialText: 'Min',
+      stickerSelected: false,
+      stickerCategories: '',
+      extraRequest: '',
+      images: Array.from({ length: 3 }, () => crypto.randomUUID()),
+    }
+    const update = {
+      fulfillmentType: 'shipping' as const,
+      postalCode: '04524',
+      address: '서울 중구 세종대로 110',
+      addressDetail: '1층',
+      cashReceiptType: 'none' as const,
+      cashReceiptIdentifier: '',
+      items: [item],
+    }
+    expect(customerOrderUpdateSchema.safeParse(update).success).toBe(true)
+    expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, images: [...item.images, crypto.randomUUID()] }] }).success).toBe(false)
+    expect(customerOrderUpdateSchema.safeParse({ ...update, items: Array.from({ length: 7 }, () => ({ ...item, id: crypto.randomUUID(), images: Array.from({ length: 3 }, () => crypto.randomUUID()) })) }).success).toBe(false)
   })
 })
 

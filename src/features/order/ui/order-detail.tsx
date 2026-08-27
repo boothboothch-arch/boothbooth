@@ -1,19 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import {
+  Camera,
   Check,
   Copy,
+  ImagePlus,
   MapPin,
   PackageCheck,
   Pencil,
   Search,
   ShoppingBag,
   Shirt,
+  Trash2,
   Truck,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
+import { prepareImage, type ImageDraft } from "../client-image";
 import {
   INITIAL_TEXT_LIMIT,
   isCustomerEditable,
@@ -24,6 +28,27 @@ import {
   type OrderView,
 } from "../domain/order";
 import type { CustomerOrderUpdateInput } from "../schemas";
+
+type EditableImage =
+  | {
+      kind: "existing";
+      localId: string;
+      id: string;
+      preview: string;
+      width: number;
+      height: number;
+    }
+  | ({ kind: "new" } & ImageDraft);
+
+class EditImageUploadError extends Error {
+  constructor(
+    public readonly itemId: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "EditImageUploadError";
+  }
+}
 
 declare global {
   interface Window {
@@ -59,30 +84,8 @@ async function copyText(value: string) {
   if (!copied) throw new Error("COPY_FAILED");
 }
 
-export function OrderDetail({
-  initialOrder,
-  complete = false,
-}: {
-  initialOrder: OrderView;
-  complete?: boolean;
-}) {
-  const [order, setOrder] = useState(initialOrder);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [postcodeError, setPostcodeError] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
-    "idle",
-  );
-  const [orderCopyState, setOrderCopyState] = useState<
-    "idle" | "copied" | "failed"
-  >("idle");
-  const [trackingCopyState, setTrackingCopyState] = useState<
-    "idle" | "copied" | "failed"
-  >("idle");
-  const detailAddressRef = useRef<HTMLInputElement>(null);
-  const orderEditorRef = useRef<HTMLElement>(null);
-  const [draft, setDraft] = useState<CustomerOrderUpdateInput>({
+function orderDraft(order: OrderView): CustomerOrderUpdateInput {
+  return {
     fulfillmentType: order.fulfillmentType,
     postalCode: order.address?.postalCode ?? "",
     address: order.address?.address ?? "",
@@ -100,8 +103,63 @@ export function OrderDetail({
       stickerSelected: item.stickerSelected,
       stickerCategories: item.stickerCategories.join(", "),
       extraRequest: item.extraRequest,
+      images: item.images.map((image) => image.id),
     })),
-  });
+  };
+}
+
+function editableImages(order: OrderView) {
+  return Object.fromEntries(
+    order.items.map((item) => [
+      item.id,
+      item.images.map(
+        (image): EditableImage => ({
+          kind: "existing",
+          localId: `existing-${image.id}`,
+          id: image.id,
+          preview: image.url,
+          width: image.width,
+          height: image.height,
+        }),
+      ),
+    ]),
+  );
+}
+
+export function OrderDetail({
+  initialOrder,
+  complete = false,
+}: {
+  initialOrder: OrderView;
+  complete?: boolean;
+}) {
+  const [order, setOrder] = useState(initialOrder);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [preparingImages, setPreparingImages] = useState(false);
+  const [error, setError] = useState("");
+  const [uploadLabel, setUploadLabel] = useState("");
+  const [imageErrors, setImageErrors] = useState<Record<string, string>>({});
+  const [postcodeError, setPostcodeError] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+  const [orderCopyState, setOrderCopyState] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
+  const [trackingCopyState, setTrackingCopyState] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
+  const detailAddressRef = useRef<HTMLInputElement>(null);
+  const orderEditorRef = useRef<HTMLElement>(null);
+  const [draft, setDraft] = useState<CustomerOrderUpdateInput>(() =>
+    orderDraft(initialOrder),
+  );
+  const [editImages, setEditImages] = useState<Record<string, EditableImage[]>>(
+    () => editableImages(initialOrder),
+  );
+  const editImagesRef = useRef(editImages);
+  const uploadedByLocalId = useRef<Record<string, string>>({});
   const currentStatusIndex = [
     "payment_pending",
     "payment_confirmed",
@@ -131,6 +189,31 @@ export function OrderDetail({
       postalCode: draft.postalCode,
       remotePostalRanges: order.deliveryConfig.remotePostalRanges,
     },
+  );
+  const totalEditImages = Object.values(editImages).reduce(
+    (sum, images) => sum + images.length,
+    0,
+  );
+
+  useEffect(() => {
+    editImagesRef.current = editImages;
+  }, [editImages]);
+  useEffect(
+    () => () => {
+      Object.values(editImagesRef.current)
+        .flat()
+        .filter((image) => image.kind === "new")
+        .forEach((image) => URL.revokeObjectURL(image.preview));
+      Object.values(uploadedByLocalId.current).forEach((id) => {
+        void fetch(`/api/orders/${initialOrder.orderNumber}/images`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+          keepalive: true,
+        });
+      });
+    },
+    [],
   );
 
   async function copyAccount() {
@@ -182,11 +265,117 @@ export function OrderDetail({
       },
     }).open();
   }
+  function deleteStagedImage(id: string) {
+    void fetch(`/api/orders/${order.orderNumber}/images`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+  }
+  function releaseNewImage(image: EditableImage, deleteUpload = true) {
+    if (image.kind !== "new") return;
+    URL.revokeObjectURL(image.preview);
+    const uploadedId = uploadedByLocalId.current[image.localId];
+    if (uploadedId) {
+      delete uploadedByLocalId.current[image.localId];
+      if (deleteUpload) deleteStagedImage(uploadedId);
+    }
+  }
+  function resetEditor(nextOrder: OrderView, deleteUploads = true) {
+    Object.values(editImagesRef.current)
+      .flat()
+      .forEach((image) => releaseNewImage(image, deleteUploads));
+    uploadedByLocalId.current = {};
+    const nextImages = editableImages(nextOrder);
+    editImagesRef.current = nextImages;
+    setEditImages(nextImages);
+    setDraft(orderDraft(nextOrder));
+    setImageErrors({});
+    setUploadLabel("");
+    setError("");
+  }
   function startEditing() {
+    resetEditor(order);
     setEditing(true);
     window.requestAnimationFrame(() =>
       orderEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
+  }
+  function cancelEditing() {
+    resetEditor(order);
+    setEditing(false);
+  }
+  async function changeImages(
+    itemId: string,
+    selected: FileList | null,
+    replaceLocalId?: string,
+  ) {
+    if (!selected?.length) return;
+    setImageErrors((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+    const currentImages = editImages[itemId] ?? [];
+    const available = Math.max(
+      0,
+      Math.min(3 - currentImages.length, 20 - totalEditImages),
+    );
+    const files = replaceLocalId
+      ? Array.from(selected).slice(0, 1)
+      : Array.from(selected).slice(0, available);
+    if (files.length === 0) return;
+    const prepared: EditableImage[] = [];
+    setPreparingImages(true);
+    try {
+      for (const file of files)
+        prepared.push({ kind: "new", ...(await prepareImage(file)) });
+      if (replaceLocalId) {
+        const replaced = currentImages.find(
+          (image) => image.localId === replaceLocalId,
+        );
+        if (replaced) releaseNewImage(replaced);
+        setEditImages((current) => ({
+          ...current,
+          [itemId]: (current[itemId] ?? []).map((image) =>
+            image.localId === replaceLocalId ? prepared[0] : image,
+          ),
+        }));
+      } else if (prepared.length > 0) {
+        setEditImages((current) => ({
+          ...current,
+          [itemId]: [...(current[itemId] ?? []), ...prepared],
+        }));
+      }
+    } catch (cause) {
+      prepared.forEach((image) => releaseNewImage(image));
+      setImageErrors((current) => ({
+        ...current,
+        [itemId]:
+          cause instanceof Error
+            ? cause.message
+            : "이미지를 처리하지 못했어요.",
+      }));
+    } finally {
+      setPreparingImages(false);
+    }
+  }
+  function removeEditImage(itemId: string, localId: string) {
+    const target = editImages[itemId]?.find(
+      (image) => image.localId === localId,
+    );
+    if (target) releaseNewImage(target);
+    setEditImages((current) => ({
+      ...current,
+      [itemId]: (current[itemId] ?? []).filter(
+        (image) => image.localId !== localId,
+      ),
+    }));
+    setImageErrors((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
   }
   function updateItem(
     index: number,
@@ -238,14 +427,77 @@ export function OrderDetail({
       ),
     });
   }
+  async function uploadEditImages() {
+    const total = Object.values(editImages)
+      .flat()
+      .filter((image) => image.kind === "new").length;
+    let completed = 0;
+    const uploaded: Record<string, string[]> = {};
+    for (const item of draft.items) {
+      uploaded[item.id] = [];
+      for (const image of editImages[item.id] ?? []) {
+        if (image.kind === "existing") {
+          uploaded[item.id].push(image.id);
+          continue;
+        }
+        const previousId = uploadedByLocalId.current[image.localId];
+        if (previousId) {
+          uploaded[item.id].push(previousId);
+          completed += 1;
+          continue;
+        }
+        try {
+          setUploadLabel(`참고 이미지 업로드 중 ${completed + 1}/${total}`);
+          const body = new FormData();
+          body.set("orderItemId", item.id);
+          body.set("width", String(image.width));
+          body.set("height", String(image.height));
+          body.set("file", image.file);
+          const response = await fetch(
+            `/api/orders/${order.orderNumber}/images`,
+            { method: "POST", body },
+          );
+          const payload = (await response.json()) as {
+            id?: string;
+            error?: { message: string };
+          };
+          if (!response.ok || !payload.id)
+            throw new Error(
+              payload.error?.message ?? "이미지를 업로드하지 못했어요.",
+            );
+          uploadedByLocalId.current[image.localId] = payload.id;
+          uploaded[item.id].push(payload.id);
+          completed += 1;
+        } catch (cause) {
+          throw new EditImageUploadError(
+            item.id,
+            cause instanceof Error
+              ? cause.message
+              : "이미지를 업로드하지 못했어요.",
+          );
+        }
+      }
+    }
+    return uploaded;
+  }
   async function save() {
     setSaving(true);
     setError("");
+    setImageErrors({});
     try {
+      const uploaded = await uploadEditImages();
+      setUploadLabel("변경 내용을 저장하고 있어요");
+      const body = {
+        ...draft,
+        items: draft.items.map((item) => ({
+          ...item,
+          images: uploaded[item.id] ?? [],
+        })),
+      };
       const response = await fetch(`/api/orders/${order.orderNumber}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
+        body: JSON.stringify(body),
       });
       const payload = (await response.json()) as {
         totalAmount?: number;
@@ -261,23 +513,25 @@ export function OrderDetail({
       const refreshed = await fetch(`/api/orders/${order.orderNumber}`, {
         cache: "no-store",
       });
-      if (refreshed.ok) setOrder((await refreshed.json()) as OrderView);
-      else
-        setOrder((current) => ({
-          ...current,
-          totalAmount: payload.totalAmount ?? current.totalAmount,
-          subtotalAmount: payload.subtotalAmount ?? current.subtotalAmount,
-          baseShippingFee: payload.baseShippingFee ?? current.baseShippingFee,
-          remoteAreaSurcharge:
-            payload.remoteAreaSurcharge ?? current.remoteAreaSurcharge,
-          shippingFee: payload.shippingFee ?? current.shippingFee,
-          deliveryZone: payload.deliveryZone ?? current.deliveryZone,
-        }));
+      if (!refreshed.ok) {
+        window.location.reload();
+        return;
+      }
+      const nextOrder = (await refreshed.json()) as OrderView;
+      resetEditor(nextOrder, false);
+      setOrder(nextOrder);
       setEditing(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "수정하지 못했어요.");
+      if (cause instanceof EditImageUploadError)
+        setImageErrors((current) => ({
+          ...current,
+          [cause.itemId]: cause.message,
+        }));
+      else
+        setError(cause instanceof Error ? cause.message : "수정하지 못했어요.");
     } finally {
       setSaving(false);
+      setUploadLabel("");
     }
   }
 
@@ -782,6 +1036,7 @@ export function OrderDetail({
                 );
                 if (!product) return null;
                 const selected = new Set(item.selectedOptionValueIds);
+                const itemImages = editImages[item.id] ?? [];
                 return (
                   <div className="editor-item" key={item.id}>
                     <strong>
@@ -950,6 +1205,88 @@ export function OrderDetail({
                           />
                         </Field>
                       )}
+                      {(product.customization.referenceImagesEnabled ||
+                        itemImages.length > 0) && (
+                        <div
+                          className={`image-picker edit-image-picker ${imageErrors[item.id] ? "image-picker--error" : ""}`}
+                        >
+                          <div>
+                            <strong>
+                              <Camera size={15} /> 디자인 참고 이미지
+                            </strong>
+                            <span>
+                              현재 {itemImages.length}/3장 · 사진을 추가하거나
+                              기존 사진을 교체·삭제할 수 있어요.
+                            </span>
+                          </div>
+                          <div className="image-grid">
+                            {itemImages.map((image) => (
+                              <figure key={image.localId}>
+                                <img
+                                  src={image.preview}
+                                  alt={`${product.name} 디자인 참고 이미지`}
+                                />
+                                {product.customization.referenceImagesEnabled && (
+                                  <label className="image-replace">
+                                    <Pencil size={11} /> 교체
+                                    <input
+                                      type="file"
+                                      disabled={saving || preparingImages}
+                                      aria-label="디자인 참고 이미지 교체"
+                                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                                      onChange={(event) => {
+                                        void changeImages(
+                                          item.id,
+                                          event.target.files,
+                                          image.localId,
+                                        );
+                                        event.target.value = "";
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={saving || preparingImages}
+                                  aria-label="디자인 참고 이미지 삭제"
+                                  onClick={() =>
+                                    removeEditImage(item.id, image.localId)
+                                  }
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </figure>
+                            ))}
+                            {product.customization.referenceImagesEnabled &&
+                              itemImages.length < 3 &&
+                              totalEditImages < 20 && (
+                                <label className="image-add">
+                                  <ImagePlus size={20} />
+                                  <span>사진 추가</span>
+                                  <input
+                                    type="file"
+                                    disabled={saving || preparingImages}
+                                    aria-label="디자인 참고 이미지 추가"
+                                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                                    multiple
+                                    onChange={(event) => {
+                                      void changeImages(
+                                        item.id,
+                                        event.target.files,
+                                      );
+                                      event.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
+                          </div>
+                          {imageErrors[item.id] && (
+                            <p className="image-picker__error" role="alert">
+                              {imageErrors[item.id]}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -987,15 +1324,28 @@ export function OrderDetail({
                 )}
               </div>
               <p className="field__hint">
-                참고 이미지 또는 상품 개수 변경은 카카오톡 채널로 문의해주세요.
+                상품 개수 변경은 카카오톡 채널로 문의해주세요.
               </p>
               {error && <p className="form-error">{error}</p>}
               <div className="form-actions">
-                <Button variant="ghost" onClick={() => setEditing(false)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saving || preparingImages}
+                  onClick={cancelEditing}
+                >
                   취소
                 </Button>
-                <Button disabled={saving} onClick={() => void save()}>
-                  {saving ? "저장 중…" : "변경 저장"}
+                <Button
+                  type="button"
+                  disabled={saving || preparingImages}
+                  onClick={() => void save()}
+                >
+                  {preparingImages
+                    ? "사진 처리 중…"
+                    : saving
+                      ? uploadLabel || "저장 중…"
+                      : "변경 저장"}
                 </Button>
               </div>
             </div>

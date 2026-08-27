@@ -60,7 +60,7 @@ export const customerOrderUpdateSchema = z.object({
   addressDetail: z.string().trim().max(200),
   cashReceiptType: z.enum(['none', 'personal', 'business']),
   cashReceiptIdentifier: z.string().trim().max(20),
-  items: z.array(orderItemSchema.omit({ clientId: true, images: true }).extend({ id: z.uuid() })).min(1),
+  items: z.array(orderItemSchema.omit({ clientId: true }).extend({ id: z.uuid() })).min(1),
 }).superRefine((value, context) => {
   if (value.fulfillmentType === 'shipping') {
     if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
@@ -70,6 +70,9 @@ export const customerOrderUpdateSchema = z.object({
   const digits = value.cashReceiptIdentifier.replaceAll('-', '')
   if (value.cashReceiptType === 'personal' && !/^01[016789]\d{7,8}$/.test(digits)) context.addIssue({ code: 'custom', path: ['cashReceiptIdentifier'], message: '휴대전화 번호를 확인해주세요.' })
   if (value.cashReceiptType === 'business' && !/^\d{10}$/.test(digits)) context.addIssue({ code: 'custom', path: ['cashReceiptIdentifier'], message: '사업자등록번호를 확인해주세요.' })
+  if (value.items.reduce((sum, item) => sum + item.images.length, 0) > 20) {
+    context.addIssue({ code: 'custom', path: ['items'], message: '한 주문에는 이미지를 최대 20장까지 첨부할 수 있어요.' })
+  }
 })
 
 export type CustomerOrderUpdateInput = z.infer<typeof customerOrderUpdateSchema>

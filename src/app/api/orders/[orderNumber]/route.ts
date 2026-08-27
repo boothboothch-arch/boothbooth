@@ -8,6 +8,13 @@ import { verifyOrderAccessToken } from '@/server/security/access-token'
 import { encryptText } from '@/server/security/crypto'
 
 type Context = { params: Promise<{ orderNumber: string }> }
+const imageBucket = 'order-reference-images'
+
+function storagePaths(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || !('storagePaths' in payload)) return []
+  const paths = (payload as { storagePaths?: unknown }).storagePaths
+  return Array.isArray(paths) ? paths.filter((path): path is string => typeof path === 'string' && path.length > 0) : []
+}
 
 async function authorize(orderNumber: string) {
   const token = (await cookies()).get('bb_order_access')?.value
@@ -48,8 +55,12 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     if (error) {
       if (error.message.includes('ORDER_NOT_EDITABLE')) throw new ApiProblem('ORDER_NOT_EDITABLE', '입금 완료 이후에는 주문서를 수정할 수 없어요.', 409)
       if (error.message.includes('INVALID_POSTAL_CODE')) throw new ApiProblem('INVALID_POSTAL_CODE', '배송지 우편번호를 확인해주세요.', 422)
+      if (error.message.includes('TOO_MANY_IMAGES')) throw new ApiProblem('TOO_MANY_IMAGES', '첨부 가능한 이미지 수를 초과했어요.', 422)
+      if (error.message.includes('INVALID_IMAGE')) throw new ApiProblem('INVALID_IMAGE', '참고 이미지를 확인하지 못했어요. 다시 첨부해주세요.', 422)
       throw new ApiProblem('ORDER_UPDATE_ERROR', '주문을 수정하지 못했어요.', 500)
     }
+    const paths = storagePaths(data)
+    if (paths.length > 0) await createPrivilegedClient().storage.from(imageBucket).remove(paths)
     return NextResponse.json(data)
   } catch (error) { return apiError(error) }
 }
