@@ -6,8 +6,10 @@ import {
   Camera,
   Check,
   Copy,
+  ExternalLink,
   ImagePlus,
   MapPin,
+  MessageCircle,
   PackageCheck,
   Pencil,
   Search,
@@ -542,17 +544,34 @@ export function OrderDetail({
         strategy="afterInteractive"
       />
       {complete && (
-        <div className="complete-mark">
-          <span>
-            <Check size={25} />
-          </span>
-          <h1>주문이 접수됐어요</h1>
-          <p>
-            <strong>주문번호를 꼭 개인 보관해주세요.</strong>
-            <br />
-            주문 조회 시 주문번호와 휴대전화 번호 뒷자리가 필요합니다.
-          </p>
-        </div>
+        <>
+          <div className="complete-mark">
+            <span>
+              <Check size={25} />
+            </span>
+            <h1>주문이 접수됐어요</h1>
+            <p>
+              <strong>주문번호를 꼭 개인 보관해주세요.</strong>
+              <br />
+              주문 조회 시 주문번호와 휴대전화 번호 뒷자리가 필요합니다.
+            </p>
+          </div>
+          <aside className="complete-kakao-callout" aria-labelledby="complete-kakao-title">
+            <span className="complete-kakao-callout__icon" aria-hidden="true">
+              <MessageCircle size={24} />
+            </span>
+            <div>
+              <span>개인 커스텀을 추가하셨나요?</span>
+              <strong id="complete-kakao-title">
+                개인 커스텀 추가 시 카카오톡 채널로 커스텀 내용을 꼭 전달 부탁드립니다.
+              </strong>
+            </div>
+            <a href={order.kakaoChannelUrl} target="_blank" rel="noreferrer">
+              부스부스 카카오톡 채널 바로가기
+              <ExternalLink size={15} />
+            </a>
+          </aside>
+        </>
       )}
       <div className="order-detail-grid">
         <section className="surface-card order-info-card">
@@ -726,6 +745,10 @@ export function OrderDetail({
               <dd>
                 {order.customerName} · {order.phone}
               </dd>
+            </div>
+            <div>
+              <dt>이메일</dt>
+              <dd>{order.email}</dd>
             </div>
             <div>
               <dt>입금자명</dt>

@@ -8,6 +8,7 @@ import {
   Camera,
   Clock3,
   ImagePlus,
+  MailCheck,
   MapPin,
   Plus,
   Search,
@@ -121,6 +122,7 @@ export function OrderForm({
     defaultValues: {
       customerName: "",
       phone: "",
+      email: "",
       depositorName: "",
       fulfillmentType: "shipping",
       postalCode: "",
@@ -578,6 +580,28 @@ export function OrderForm({
               placeholder="010-1234-5678"
               {...form.register("phone")}
             />
+          </Field>
+          <Field
+            label="이메일"
+            error={form.formState.errors.email?.message}
+            full
+            required
+          >
+            <input
+              type="email"
+              aria-required="true"
+              autoComplete="email"
+              inputMode="email"
+              placeholder="order@example.com"
+              {...form.register("email")}
+            />
+            <span className="email-delivery-hint" role="note">
+              <MailCheck size={16} aria-hidden="true" />
+              <span>
+                주문 상태를 확인할 수 있는 주문번호와 주요 안내를 보내드려요.
+                오타 없이 실제로 확인 가능한 이메일 주소를 입력해주세요.
+              </span>
+            </span>
           </Field>
           <Field
             label="입금자명"
@@ -1193,8 +1217,8 @@ export function OrderForm({
               개인정보 수집 및 이용에 동의합니다. <RequiredMark />
             </strong>
             <br />
-            주문, 제작, 배송·픽업과 고객 문의를 위해 연락처, 주소, 현금영수증
-            정보와 참고 이미지를 수집합니다.
+            주문 확인 이메일, 제작, 배송·픽업과 고객 문의를 위해 이메일 주소,
+            연락처, 주소, 현금영수증 정보와 참고 이미지를 수집합니다.
           </span>
         </label>
         {form.formState.errors.privacyConsent?.message && (

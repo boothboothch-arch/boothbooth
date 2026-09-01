@@ -54,6 +54,7 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
     orderNumber: order.order_number,
     customerName: order.customer_name,
     phone: safeDecrypt(order.phone_ciphertext),
+    email: safeDecrypt(order.email_ciphertext),
     depositorName: order.depositor_name,
     address,
     fulfillmentType: order.fulfillment_type,

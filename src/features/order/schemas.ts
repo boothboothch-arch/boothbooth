@@ -23,6 +23,7 @@ export const orderItemSchema = z.object({
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(2, '이름을 입력해주세요.').max(50),
   phone: z.string().regex(/^01[016789]-?\d{3,4}-?\d{4}$/, '휴대전화 번호를 확인해주세요.'),
+  email: z.string().trim().toLowerCase().max(254).email('이메일 주소를 확인해주세요.'),
   depositorName: z.string().trim().min(2, '입금자명을 입력해주세요.').max(50),
   fulfillmentType: z.enum(['shipping', 'pickup']),
   postalCode: z.string().trim().max(10),

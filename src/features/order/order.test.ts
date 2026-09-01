@@ -8,7 +8,7 @@ const products: ProductConfig[] = [
 ]
 
 const validOrder = {
-  customerName: '홍길동', phone: '010-1234-5678', depositorName: '홍길동',
+  customerName: '홍길동', phone: '010-1234-5678', email: 'buyer@example.com', depositorName: '홍길동',
   fulfillmentType: 'shipping', postalCode: '04524', address: '서울 중구 세종대로 110', addressDetail: '1층',
   cashReceiptType: 'none', cashReceiptIdentifier: '',
   items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'], initialText: 'Min', stickerSelected: true, stickerCategories: '공룡, 무지개', extraRequest: '', images: [] }],
@@ -17,6 +17,10 @@ const validOrder = {
 
 describe('order validation', () => {
   it('상품별 커스텀 주문을 허용한다', () => expect(orderFormSchema.safeParse(validOrder).success).toBe(true))
+  it('유효한 이메일 주소를 필수로 요구하고 정규화한다', () => {
+    expect(orderFormSchema.parse({ ...validOrder, email: ' Buyer@Example.COM ' }).email).toBe('buyer@example.com')
+    expect(orderFormSchema.safeParse({ ...validOrder, email: 'not-an-email' }).success).toBe(false)
+  })
   it('가방에는 옵션 그룹이 없어도 된다', () => expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], productId: products[1].id, itemType: 'bag', selectedOptionValueIds: [] }] }).success).toBe(true))
   it('이니셜은 공백 제외 영문 12자까지만 허용한다', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKL' }] }).success).toBe(true)

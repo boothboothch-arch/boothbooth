@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/server/auth/admin'
-import { encryptText, hmac, normalizePhone } from '@/server/security/crypto'
+import { encryptText, hmac, normalizeEmail, normalizePhone } from '@/server/security/crypto'
+import { processOrderEmail } from '@/server/email/order-email'
 import { createAuthServerClient } from '@/server/supabase/server-client'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { INITIAL_TEXT_LIMIT } from '@/features/order/domain/order'
@@ -106,14 +107,54 @@ export async function updateOrderAction(formData: FormData) {
   redirect(`/admin/orders/${orderNumber}?saved=1`)
 }
 
+const bulkOrderStateSchema = z.object({
+  orderIds: z.array(z.uuid()).min(1).max(1000),
+  orderState: z.enum(['payment_pending', 'payment_confirmed', 'preparing', 'completed', 'cancelled']),
+})
+
+export async function bulkUpdateOrderStateAction(input: unknown): Promise<
+  | { ok: true; changedCount: number; unchangedCount: number }
+  | { ok: false; message: string }
+> {
+  await requireAdmin()
+  const parsed = bulkOrderStateSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, message: '선택한 주문과 변경할 상태를 다시 확인해주세요.' }
+  const orderIds = [...new Set(parsed.data.orderIds)]
+  if (orderIds.length !== parsed.data.orderIds.length) return { ok: false, message: '중복 선택된 주문이 있습니다. 목록을 새로고침한 후 다시 시도해주세요.' }
+
+  const { data, error } = await createPrivilegedClient().rpc('admin_bulk_update_order_state_v1', {
+    p_order_ids: orderIds,
+    p_order_state: parsed.data.orderState,
+  })
+  if (error) {
+    if (error.message.includes('BULK_TRACKING_REQUIRED')) return { ok: false, message: '출고 완료로 변경하려면 선택한 모든 택배 주문에 운송장 번호가 등록되어 있어야 합니다.' }
+    if (error.message.includes('ORDER_NOT_FOUND')) return { ok: false, message: '목록을 불러온 뒤 변경되거나 삭제된 주문이 있습니다. 새로고침 후 다시 선택해주세요.' }
+    if (error.message.includes('INVALID_BULK_ORDER_COUNT')) return { ok: false, message: '한 번에 변경할 수 있는 주문은 최대 1,000건입니다.' }
+    return { ok: false, message: '주문 상태를 일괄 변경하지 못했습니다. 잠시 후 다시 시도해주세요.' }
+  }
+
+  const result = data as { changedCount?: number; unchangedCount?: number } | null
+  revalidatePath('/admin')
+  revalidatePath('/admin/orders')
+  return {
+    ok: true,
+    changedCount: result?.changedCount ?? 0,
+    unchangedCount: result?.unchangedCount ?? 0,
+  }
+}
+
 export async function updateOrderInfoAction(formData: FormData) {
   await requireAdmin()
   const orderNumber = value(formData, 'orderNumber')
   const phone = normalizePhone(value(formData, 'phone'))
+  const email = normalizeEmail(value(formData, 'email'))
   const fulfillmentType = value(formData, 'fulfillmentType')
   const postalCode = value(formData, 'postalCode')
   if (!/^01[016789]\d{7,8}$/.test(phone)) {
     redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('휴대전화 형식을 확인해주세요.')}`)
+  }
+  if (!z.string().email().safeParse(email).success) {
+    redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('이메일 주소를 확인해주세요.')}`)
   }
   if (fulfillmentType === 'shipping' && !/^\d{5}$/.test(postalCode)) {
     redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent('우편번호를 확인해주세요.')}`)
@@ -122,17 +163,21 @@ export async function updateOrderInfoAction(formData: FormData) {
   const addressCiphertext = fulfillmentType === 'shipping'
     ? encryptText(JSON.stringify({ postalCode, address: value(formData, 'address'), addressDetail: value(formData, 'addressDetail') }))
     : ''
-  const { error } = await client.rpc('admin_update_order_contact_v2', {
-    p_order_id: value(formData, 'orderId'),
+  const orderId = value(formData, 'orderId')
+  const { error } = await client.rpc('admin_update_order_contact_v3', {
+    p_order_id: orderId,
     p_customer_name: value(formData, 'customerName'),
     p_phone_ciphertext: encryptText(phone),
     p_phone_hash: hmac(phone),
     p_phone_last4_hash: hmac(phone.slice(-4)),
+    p_email_ciphertext: encryptText(email),
+    p_email_hash: hmac(email),
     p_depositor_name: value(formData, 'depositorName'),
     p_address_ciphertext: addressCiphertext,
     p_postal_code: postalCode,
   })
   if (error) redirect(`/admin/orders/${orderNumber}?error=${encodeURIComponent(error.message)}`)
+  await processOrderEmail(orderId)
   revalidatePath('/admin')
   revalidatePath('/admin/orders')
   revalidatePath(`/admin/orders/${orderNumber}`)

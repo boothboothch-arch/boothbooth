@@ -4,7 +4,8 @@ import { INITIAL_TEXT_LIMIT } from '@/features/order/domain/order'
 import { apiError, ApiProblem, assertSameOrigin, enforceRateLimit } from '@/server/http/api'
 import { createPrivilegedClient } from '@/server/supabase/privileged-client'
 import { createOrderAccessToken } from '@/server/security/access-token'
-import { encryptText, hmac, normalizePhone } from '@/server/security/crypto'
+import { encryptText, hmac, normalizeEmail, normalizePhone } from '@/server/security/crypto'
+import { processOrderEmail } from '@/server/email/order-email'
 
 function mapSubmitError(message: string) {
   if (message.includes('RESERVATION_EXPIRED')) return new ApiProblem('RESERVATION_EXPIRED', '주문서 이용 시간이 끝났어요.', 410)
@@ -28,10 +29,12 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) throw new ApiProblem('INVALID_INPUT', parsed.error.issues[0]?.message ?? '입력 내용을 확인해주세요.', 422)
     const value = parsed.data
     const phone = normalizePhone(value.phone)
+    const email = normalizeEmail(value.email)
     const idempotencyKey = request.headers.get('idempotency-key') ?? crypto.randomUUID()
     const payload = {
       customerName: value.customerName,
       phoneCiphertext: encryptText(phone),
+      emailCiphertext: encryptText(email),
       depositorName: value.depositorName,
       fulfillmentType: value.fulfillmentType,
       postalCode: value.fulfillmentType === 'shipping' ? value.postalCode : '',
@@ -45,11 +48,12 @@ export async function POST(request: NextRequest) {
       p_idempotency_key: idempotencyKey,
       p_payload: payload,
       p_phone_hash: hmac(phone),
-      p_email_hash: null,
+      p_email_hash: hmac(email),
       p_phone_last4_hash: hmac(phone.slice(-4)),
     })
     if (error) throw mapSubmitError(error.message)
-    const result = data as { orderNumber: string }
+    const result = data as { orderId: string; orderNumber: string }
+    await processOrderEmail(result.orderId)
     const response = NextResponse.json({ ...result, redirectTo: `/order/complete/${result.orderNumber}` })
     response.cookies.set('bb_order_access', createOrderAccessToken(result.orderNumber), { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 60, path: '/' })
     response.cookies.delete('bb_reservation')

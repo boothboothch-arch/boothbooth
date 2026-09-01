@@ -29,6 +29,7 @@
 | 주소 검색 | Kakao 우편번호 서비스 | 국내 우편번호 및 주소 검색 |
 | 파일 저장 | Supabase Storage private bucket | 상품별 디자인 참고 이미지 |
 | 이미지 처리 | 브라우저 기반 리사이즈·형식 변환 | iPhone HEIC/HEIF 포함 모바일 업로드 최적화 |
+| 주문 이메일 | Resend Email API | 주문번호 안내, idempotency key 기반 중복 방지 |
 | 유효성 검사 | Zod | 요청·폼·환경변수 런타임 검증 |
 | 폼 | React Hook Form + Zod resolver | 주문서 및 관리자 폼 상태 관리 |
 | 테스트 | Vitest, Testing Library, Playwright | 단위·컴포넌트·E2E 테스트 |
@@ -54,6 +55,8 @@ flowchart LR
   VF --> AUTH
   U --> STORAGE["Supabase Storage · private"]
   VF --> STORAGE
+  VCRON["Vercel Cron"] --> VF
+  VF --> EMAIL["Resend Email API"]
   CRON["Supabase Cron"] --> DB
 ```
 
@@ -102,6 +105,7 @@ src/
 │   └── ui/                              # 디자인 시스템 기본 컴포넌트
 ├── server/
 │   ├── auth/                            # 관리자 인증
+│   ├── email/                           # 주문 이메일 템플릿·outbox 처리
 │   ├── orders/                          # 주문 조회 조립
 │   ├── security/                        # 암호화·HMAC·접근 토큰
 │   └── supabase/                        # SSR·브라우저·service-role 클라이언트
@@ -389,6 +393,13 @@ payment_state    = pending | review_required | paid | refund_required | refunded
 - 복구는 현재 주문과 예약 수를 다시 검사하며, 한도 이상이면 실패한다.
 - 복구로 충돌하는 신규 주문이 있으면 관리자에게 정확한 충돌 사유를 표시한다.
 
+### 8.6 주문 상태 일괄 변경 RPC
+
+- 관리자 목록의 현재 필터 결과에서 최대 1,000건을 선택해 한 번의 RPC로 상태를 변경한다.
+- RPC는 대상 주문을 고정된 순서로 잠그고 모든 주문의 존재 여부와 출고 완료 조건을 먼저 검증한다.
+- 택배 주문을 출고 완료로 바꿀 때 송장번호가 하나라도 없으면 전체 트랜잭션을 실패시킨다.
+- 이미 목표 상태인 주문은 변경 건수에서 제외하고, 처리 중 오류가 발생하면 어떤 주문도 변경하지 않는다.
+
 ## 9. 판매 상태 갱신 전략
 
 ### 1차 구현
@@ -452,8 +463,13 @@ NEXT_PUBLIC_KAKAO_POSTCODE_ENABLED=true
 
 # Vercel 서버 전용 환경변수
 SUPABASE_SECRET_KEY=
+PII_ENCRYPTION_KEY=
 PII_HMAC_SECRET=
 ORDER_ACCESS_SIGNING_SECRET=
+RESEND_API_KEY=
+ORDER_EMAIL_FROM=
+ORDER_EMAIL_REPLY_TO=
+CRON_SECRET=
 ```
 
 - 신규 Supabase 프로젝트에서는 기존 `anon`/`service_role` 대신 publishable/secret 키를 우선한다.
@@ -461,6 +477,8 @@ ORDER_ACCESS_SIGNING_SECRET=
 - Preview와 Production은 서로 다른 Supabase 프로젝트와 키를 사용한다.
 - 환경변수는 애플리케이션 시작 시 Zod로 검증한다.
 - 비밀키 변경 시 기존 HMAC 검색 데이터에 미치는 영향을 고려해 버전 관리 전략을 둔다.
+- 주문과 이메일 전송을 분리하기 위해 `email_outbox`에 먼저 기록하고, 주문 직후 즉시 전송한 뒤 실패 작업은 Vercel Cron이 재시도한다.
+- Resend 요청에는 outbox dedupe key를 idempotency key로 전달한다. 테스트 차수도 발송하되 제목과 본문에서 실제 주문이 아님을 명확히 표시한다.
 
 ## 14. 입력 검증
 

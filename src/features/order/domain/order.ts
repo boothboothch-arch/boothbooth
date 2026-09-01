@@ -63,6 +63,7 @@ export type OrderView = {
   orderNumber: string
   customerName: string
   phone: string
+  email: string
   depositorName: string
   address: { postalCode: string; address: string; addressDetail: string } | null
   fulfillmentType: FulfillmentType

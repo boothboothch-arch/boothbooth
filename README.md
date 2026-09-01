@@ -15,6 +15,7 @@ booth booth의 커스텀 상품을 주문서 접수 한도와 상품별 재고 �
 - 주문 완료/조회 시 계좌 및 주문·입금·배송 상태 표시
 - 입금 대기·확인 필요·완료·환불 상태, 관리자 미입금 취소와 복구
 - 관리자 로그인, 주문/상품/판매/배송 설정, CSV 다운로드
+- 조회 결과 전체 선택과 선택 주문 상태 일괄 변경
 - 기존 설정을 복사한 다음 차수 초안, 공개 전 점검·미리보기·공개·보관
 - 차수별 대시보드·주문·CSV와 과거 주문 조회
 
@@ -88,6 +89,22 @@ npx supabase db push
 저장소를 Vercel에 연결하고 `.env.example`의 변수를 Production/Preview 환경에 등록합니다. `NEXT_PUBLIC_APP_URL`은 실제 HTTPS 주소로 지정합니다. 함수 기본 리전은 [vercel.json](./vercel.json)에서 서울(`icn1`)로 고정했습니다.
 
 Vercel Hobby는 비상업적 개인 프로젝트용입니다. 실제 티셔츠 판매 전에는 Vercel Pro 전환 또는 상업적 사용을 허용하는 호스팅이 필요합니다.
+
+### 주문 확인 이메일
+
+주문 접수 시 고객 이메일을 암호화해 저장하고 주문번호가 포함된 확인 메일을 보냅니다. 메일 발송 실패는 주문 접수에 영향을 주지 않으며, `email_outbox`에 남은 작업을 Vercel Cron이 5분마다 최대 5회 재시도합니다. 테스트 차수도 전체 흐름을 확인할 수 있도록 메일을 발송하되 제목과 본문에 테스트 주문임을 강조합니다.
+
+1. Resend에서 발신 도메인을 인증하고 API 키를 생성합니다.
+2. Vercel Production 환경에 아래 값을 등록합니다.
+
+```text
+RESEND_API_KEY=re_...
+ORDER_EMAIL_FROM=부스부스 <orders@인증한도메인>
+ORDER_EMAIL_REPLY_TO=고객문의용이메일
+CRON_SECRET=16자 이상의 임의 문자열
+```
+
+`ORDER_EMAIL_REPLY_TO`는 생략할 수 있습니다. `ORDER_EMAIL_FROM`은 Resend에서 인증한 도메인의 주소여야 합니다. 주문 메일의 조회 버튼에는 `NEXT_PUBLIC_APP_URL`, 문의 링크에는 차수별 카카오톡 채널 주소가 사용됩니다.
 
 ## 검증 명령
 
