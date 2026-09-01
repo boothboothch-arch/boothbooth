@@ -919,8 +919,11 @@ export function OrderForm({
                               ?.stickerCategories?.message
                           }
                           full
+                          required
                         >
                           <input
+                            aria-required="true"
+                            required
                             placeholder="자동차, 공룡, 무지개처럼 3~5개 권장"
                             {...form.register(
                               `items.${index}.stickerCategories`,

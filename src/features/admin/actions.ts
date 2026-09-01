@@ -192,6 +192,10 @@ const adminOrderItemUpdateSchema = z.object({
   stickerSelected: z.boolean(),
   stickerCategories: z.string().trim().max(200),
   extraRequest: z.string().trim().max(300),
+}).superRefine((value, context) => {
+  if (value.stickerSelected && !value.stickerCategories.split(',').some((category) => category.trim())) {
+    context.addIssue({ code: 'custom', path: ['stickerCategories'], message: '원하는 스티커 카테고리를 하나 이상 입력해주세요.' })
+  }
 })
 
 function orderItemUpdateError(message: string) {

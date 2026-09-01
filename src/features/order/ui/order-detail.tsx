@@ -1202,8 +1202,10 @@ export function OrderDetail({
                             </select>
                           </Field>
                           {item.stickerSelected && (
-                            <Field label="원하는 스티커 카테고리" full>
+                            <Field label="원하는 스티커 카테고리" full required>
                               <input
+                                aria-required="true"
+                                required
                                 value={item.stickerCategories}
                                 onChange={(event) =>
                                   updateItem(index, {
@@ -1388,15 +1390,26 @@ export function OrderDetail({
 function Field({
   label,
   full = false,
+  required = false,
   children,
 }: {
   label: string;
   full?: boolean;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className={`field ${full ? "field--full" : ""}`}>
-      <label>{label}</label>
+      <label>
+        {label}
+        {required && (
+          <>
+            {" "}
+            <span className="required-mark" aria-hidden="true">*</span>
+            <span className="sr-only">필수</span>
+          </>
+        )}
+      </label>
       {children}
     </div>
   );

@@ -36,6 +36,11 @@ export const orderFormSchema = z.object({
   customOrderConsent: z.boolean().refine((value) => value, '커스텀 제작 및 교환·환불 안내에 동의해주세요.'),
   website: z.string().max(0).optional(),
 }).superRefine((value, context) => {
+  value.items.forEach((item, index) => {
+    if (item.stickerSelected && !item.stickerCategories.split(',').some((category) => category.trim())) {
+      context.addIssue({ code: 'custom', path: ['items', index, 'stickerCategories'], message: '원하는 스티커 카테고리를 하나 이상 입력해주세요.' })
+    }
+  })
   if (value.fulfillmentType === 'shipping') {
     if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })
@@ -63,6 +68,11 @@ export const customerOrderUpdateSchema = z.object({
   cashReceiptIdentifier: z.string().trim().max(20),
   items: z.array(orderItemSchema.omit({ clientId: true }).extend({ id: z.uuid() })).min(1),
 }).superRefine((value, context) => {
+  value.items.forEach((item, index) => {
+    if (item.stickerSelected && !item.stickerCategories.split(',').some((category) => category.trim())) {
+      context.addIssue({ code: 'custom', path: ['items', index, 'stickerCategories'], message: '원하는 스티커 카테고리를 하나 이상 입력해주세요.' })
+    }
+  })
   if (value.fulfillmentType === 'shipping') {
     if (!/^\d{5}$/.test(value.postalCode)) context.addIssue({ code: 'custom', path: ['postalCode'], message: '우편번호를 확인해주세요.' })
     if (value.address.length < 3) context.addIssue({ code: 'custom', path: ['address'], message: '주소를 입력해주세요.' })

@@ -22,6 +22,11 @@ describe('order validation', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, email: 'not-an-email' }).success).toBe(false)
   })
   it('가방에는 옵션 그룹이 없어도 된다', () => expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], productId: products[1].id, itemType: 'bag', selectedOptionValueIds: [] }] }).success).toBe(true))
+  it('랜덤 스티커 선택 시 원하는 카테고리를 필수로 요구한다', () => {
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerCategories: '' }] }).success).toBe(false)
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerCategories: ' , ' }] }).success).toBe(false)
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerSelected: false, stickerCategories: '' }] }).success).toBe(true)
+  })
   it('이니셜은 공백 제외 영문 12자까지만 허용한다', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKL' }] }).success).toBe(true)
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKLM' }] }).success).toBe(false)
@@ -69,6 +74,7 @@ describe('order validation', () => {
       items: [item],
     }
     expect(customerOrderUpdateSchema.safeParse(update).success).toBe(true)
+    expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, stickerSelected: true, stickerCategories: '' }] }).success).toBe(false)
     expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, images: [...item.images, crypto.randomUUID()] }] }).success).toBe(false)
     expect(customerOrderUpdateSchema.safeParse({ ...update, items: Array.from({ length: 7 }, () => ({ ...item, id: crypto.randomUUID(), images: Array.from({ length: 3 }, () => crypto.randomUUID()) })) }).success).toBe(false)
   })
