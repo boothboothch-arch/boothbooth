@@ -128,7 +128,10 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
         <div className="form-actions"><Button type="button" variant="ghost" onClick={reset}><X size={13} /> 취소</Button><Button type="submit"><Save size={13} /> 변경 저장</Button></div>
       </form>}
 
-      {item.images.length > 0 && <div className="admin-image-grid">{item.images.map((image) => <a href={image.url} target="_blank" rel="noreferrer" key={image.id}><img src={image.url} alt="주문 디자인 참고" /><span>원본 보기 <ExternalLink size={12} /></span></a>)}</div>}
+      {item.images.length > 0 && <div className="admin-image-grid">{item.images.map((image) => {
+        const imageUrl = `/api/admin/order-images/${encodeURIComponent(image.id)}`
+        return <a href={imageUrl} target="_blank" rel="noreferrer" key={image.id}><img src={imageUrl} alt="주문 디자인 참고" /><span>원본 보기 <ExternalLink size={12} /></span></a>
+      })}</div>}
       {logs.length > 0 && <details className="admin-item-change-history"><summary><History size={13} /> 변경 이력 {logs.length}건</summary><ul>{logs.map((log) => <li key={log.id}><span>{new Date(log.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</span><strong>{money(log.orderTotalBefore)} → {money(log.orderTotalAfter)}</strong></li>)}</ul></details>}
     </article>
   )
