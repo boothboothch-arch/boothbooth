@@ -517,6 +517,10 @@ export function OrderForm({
             <Clock3 size={15} /> 주문 자리 확보 중
           </strong>
           <span>입장 후 30분 안에 제출해주세요.</span>
+          <small className="timer-bar__idle-note">
+            5분간 입력·터치가 없으면 안내가 표시되고, 이후 1분간 활동이
+            없으면 자동 종료됩니다.
+          </small>
         </div>
         <b>{remainingLabel(remaining)}</b>
       </div>

@@ -1245,6 +1245,11 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 11px;
 }
+.timer-bar .timer-bar__idle-note {
+  color: #a45216;
+  font-size: 10px;
+  line-height: 1.45;
+}
 .timer-bar > b {
   color: var(--blue);
   font-size: 21px;
