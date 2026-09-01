@@ -117,6 +117,7 @@ export function OrderForm({
   const warnedAt = useRef<number | null>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
   const uploadedByLocalId = useRef<Record<string, string>>({});
+  const cashReceiptDetailsRef = useRef<HTMLDetailsElement>(null);
   const form = useForm<OrderFormInput>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
@@ -146,6 +147,8 @@ export function OrderForm({
   const postalCode = form.watch("postalCode");
   const baseAddress = form.watch("address");
   const cashReceiptType = form.watch("cashReceiptType");
+  const cashReceiptIdentifierError =
+    form.formState.errors.cashReceiptIdentifier;
   const totals = useMemo(
     () =>
       orderTotals(products, watchedItems, fulfillmentType, {
@@ -178,6 +181,11 @@ export function OrderForm({
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
+  useEffect(() => {
+    if (cashReceiptIdentifierError && cashReceiptDetailsRef.current) {
+      cashReceiptDetailsRef.current.open = true;
+    }
+  }, [cashReceiptIdentifierError]);
   useEffect(
     () => () =>
       Object.values(imagesRef.current)
@@ -1139,46 +1147,6 @@ export function OrderForm({
           ) : null}
         </div>
 
-        <div className="form-section">
-          <FormHeading
-            number="04"
-            title="현금영수증"
-            description="필요한 경우 발급 정보를 남겨주세요."
-          />
-          <div className="form-grid">
-            <Field label="신청 유형" full>
-              <select {...form.register("cashReceiptType")}>
-                <option value="none">신청 안 함</option>
-                <option value="personal">개인 소득공제용</option>
-                <option value="business">사업자 지출증빙용</option>
-              </select>
-            </Field>
-            {cashReceiptType !== "none" && (
-              <Field
-                label={
-                  cashReceiptType === "personal"
-                    ? "휴대전화 번호"
-                    : "사업자등록번호"
-                }
-                error={form.formState.errors.cashReceiptIdentifier?.message}
-                full
-                required
-              >
-                <input
-                  aria-required="true"
-                  inputMode="numeric"
-                  placeholder={
-                    cashReceiptType === "personal"
-                      ? "01012345678"
-                      : "1234567890"
-                  }
-                  {...form.register("cashReceiptIdentifier")}
-                />
-              </Field>
-            )}
-          </div>
-        </div>
-
         <div className="summary-box order-total-box">
           <div className="summary-line">
             <span>상품 {watchedItems.length}개</span>
@@ -1205,6 +1173,50 @@ export function OrderForm({
             <strong>{totals.total.toLocaleString("ko-KR")}원</strong>
           </div>
         </div>
+
+        <details ref={cashReceiptDetailsRef} className="optional-receipt">
+          <summary>
+            <span>
+              <strong>현금영수증 신청</strong>
+              <small>선택</small>
+            </span>
+            <span>필요한 경우에만 입력해주세요.</span>
+          </summary>
+          <div className="optional-receipt__body">
+            <div className="form-grid">
+              <Field label="신청 유형" full>
+                <select {...form.register("cashReceiptType")}>
+                  <option value="none">신청 안 함</option>
+                  <option value="personal">개인 소득공제용</option>
+                  <option value="business">사업자 지출증빙용</option>
+                </select>
+              </Field>
+              {cashReceiptType !== "none" && (
+                <Field
+                  label={
+                    cashReceiptType === "personal"
+                      ? "휴대전화 번호"
+                      : "사업자등록번호"
+                  }
+                  error={cashReceiptIdentifierError?.message}
+                  full
+                  required
+                >
+                  <input
+                    aria-required="true"
+                    inputMode="numeric"
+                    placeholder={
+                      cashReceiptType === "personal"
+                        ? "01012345678"
+                        : "1234567890"
+                    }
+                    {...form.register("cashReceiptIdentifier")}
+                  />
+                </Field>
+              )}
+            </div>
+          </div>
+        </details>
 
         <label className="checkbox privacy-box">
           <input

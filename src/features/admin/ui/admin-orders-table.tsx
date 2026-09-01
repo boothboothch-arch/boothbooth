@@ -21,6 +21,7 @@ export type AdminOrderRow = {
   orderState: OrderView['orderState']
   fulfillmentType: OrderView['fulfillmentType']
   hasTrackingNumber: boolean
+  needsCashReceiptSelfIssue: boolean
   overdue: boolean
   createdAtLabel: string
 }
@@ -164,7 +165,10 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                   <td><Link href={`/admin/orders/${order.orderNumber}`}>{order.orderNumber}</Link>{order.overdue && <small className="text-danger">입금 1시간 경과</small>}</td>
                   <td>{order.customerName}<small>{order.depositorName}</small></td>
                   <td>{order.totalQuantity}개</td>
-                  <td>{order.totalAmount.toLocaleString('ko-KR')}원</td>
+                  <td>
+                    {order.totalAmount.toLocaleString('ko-KR')}원
+                    {order.needsCashReceiptSelfIssue && <small className="admin-receipt-alert">현금영수증 자진발급 필요</small>}
+                  </td>
                   <td><Badge className="admin-order-status-badge" tone={orderStateTone(order.orderState)}>{orderStateLabel[order.orderState]}</Badge></td>
                   <td>{order.createdAtLabel}</td>
                 </tr>

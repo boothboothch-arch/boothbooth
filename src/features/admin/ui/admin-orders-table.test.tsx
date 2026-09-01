@@ -28,6 +28,7 @@ const orders: AdminOrderRow[] = [
     orderState: 'payment_pending',
     fulfillmentType: 'shipping',
     hasTrackingNumber: false,
+    needsCashReceiptSelfIssue: false,
     overdue: false,
     createdAtLabel: '2026. 9. 1.',
   },
@@ -43,6 +44,7 @@ const orders: AdminOrderRow[] = [
     orderState: 'preparing',
     fulfillmentType: 'pickup',
     hasTrackingNumber: true,
+    needsCashReceiptSelfIssue: true,
     overdue: false,
     createdAtLabel: '2026. 9. 1.',
   },
@@ -54,6 +56,12 @@ describe('AdminOrdersTable', () => {
   beforeEach(() => {
     bulkUpdateMock.mockReset()
     refreshMock.mockReset()
+  })
+
+  it('자진발급 확인이 필요한 주문을 금액 아래에 표시한다', () => {
+    render(<AdminOrdersTable orders={orders} />)
+
+    expect(screen.getByText('현금영수증 자진발급 필요')).toBeInTheDocument()
   })
 
   it('조회 결과 전체를 선택하고 부분 선택 상태를 표시한다', () => {

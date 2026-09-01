@@ -2091,6 +2091,10 @@ textarea:focus-visible {
   margin-top: 4px;
   color: var(--muted);
 }
+.admin-table td .admin-receipt-alert {
+  color: #a45216;
+  font-weight: 700;
+}
 .admin-orders-selectable {
   transition: padding-bottom 160ms ease;
 }
@@ -3429,6 +3433,54 @@ textarea:focus-visible {
   padding: 22px;
   background: #eff7f2;
 }
+.optional-receipt {
+  margin: 12px 0 18px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.optional-receipt summary {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 15px 2px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  list-style: none;
+}
+.optional-receipt summary::-webkit-details-marker {
+  display: none;
+}
+.optional-receipt summary::after {
+  content: "+";
+  color: #8f8e89;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+}
+.optional-receipt[open] summary::after {
+  content: "−";
+}
+.optional-receipt summary > span:first-child {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.optional-receipt summary strong {
+  color: var(--text);
+  font-size: 12px;
+}
+.optional-receipt summary small {
+  padding: 2px 5px;
+  color: #8f8e89;
+  background: var(--surface);
+  border-radius: 4px;
+  font-size: 9px;
+}
+.optional-receipt__body {
+  padding: 3px 0 18px;
+}
 .custom-consent {
   margin-top: 10px;
 }
@@ -4058,6 +4110,12 @@ textarea:focus-visible {
   }
 }
 @media (max-width: 430px) {
+  .optional-receipt summary {
+    grid-template-columns: 1fr auto;
+  }
+  .optional-receipt summary > span:last-of-type {
+    display: none;
+  }
   .complete-kakao-callout {
     align-items: start;
     margin-top: -12px;

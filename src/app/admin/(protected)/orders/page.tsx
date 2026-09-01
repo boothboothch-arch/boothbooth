@@ -30,7 +30,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     const { data: matchedItems } = await itemQuery
     matchingOrderIds = [...new Set((matchedItems ?? []).map((item) => item.order_id))]
   }
-  let query = client.from('orders').select('id,sale_id,order_number,customer_name,depositor_name,total_quantity,total_amount,order_state,payment_state,payment_due_at,fulfillment_type,created_at,shipments(tracking_number)').order('created_at', { ascending: false })
+  let query = client.from('orders').select('id,sale_id,order_number,customer_name,depositor_name,total_quantity,total_amount,order_state,payment_state,payment_due_at,fulfillment_type,cash_receipt_type,created_at,shipments(tracking_number)').order('created_at', { ascending: false })
   if (saleId !== 'all') query = query.eq('sale_id', saleId)
   const textQuery = q.replace(/[^\p{L}\p{N}\s-]/gu, '')
   if (q.includes('@')) query = query.eq('email_normalized_hash', hmac(normalizeEmail(q)))
@@ -70,6 +70,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       orderState: order.order_state as OrderView['orderState'],
       fulfillmentType: order.fulfillment_type as OrderView['fulfillmentType'],
       hasTrackingNumber: order.fulfillment_type !== 'shipping' || Boolean(shipment?.tracking_number?.trim()),
+      needsCashReceiptSelfIssue: sale?.sale_kind !== 'test' && order.total_amount >= 100000 && order.payment_state === 'paid' && order.cash_receipt_type === 'none',
       overdue: order.order_state === 'payment_pending' && order.payment_state === 'pending' && Date.parse(order.payment_due_at) <= Date.now(),
       createdAtLabel: new Date(order.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
     }
