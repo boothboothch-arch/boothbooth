@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/cron/order-emails",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

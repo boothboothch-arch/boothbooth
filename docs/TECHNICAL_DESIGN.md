@@ -477,7 +477,7 @@ CRON_SECRET=
 - Preview와 Production은 서로 다른 Supabase 프로젝트와 키를 사용한다.
 - 환경변수는 애플리케이션 시작 시 Zod로 검증한다.
 - 비밀키 변경 시 기존 HMAC 검색 데이터에 미치는 영향을 고려해 버전 관리 전략을 둔다.
-- 주문과 이메일 전송을 분리하기 위해 `email_outbox`에 먼저 기록하고, 주문 직후 즉시 전송한 뒤 실패 작업은 Vercel Cron이 재시도한다.
+- 주문과 이메일 전송을 분리하기 위해 `email_outbox`에 먼저 기록하고, 주문 직후 즉시 전송한 뒤 실패 작업은 Vercel Cron이 재시도한다. Hobby 배포에서는 하루 1회, Pro 배포에서는 5분 주기를 사용한다.
 - Resend 요청에는 outbox dedupe key를 idempotency key로 전달한다. 테스트 차수도 발송하되 제목과 본문에서 실제 주문이 아님을 명확히 표시한다.
 
 ## 14. 입력 검증
