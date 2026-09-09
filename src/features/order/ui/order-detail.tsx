@@ -102,6 +102,7 @@ function orderDraft(order: OrderView): CustomerOrderUpdateInput {
         (option) => option.valueId,
       ),
       initialText: item.initialText,
+      initialLineCount: item.initialLineCount,
       stickerSelected: item.stickerSelected,
       stickerCategories: item.stickerCategories.join(", "),
       extraRequest: item.extraRequest,
@@ -829,7 +830,7 @@ export function OrderDetail({
                 <div>
                   <strong>
                     {item.productName}
-                    {item.initialText ? ` · ${item.initialText}` : ""}
+                    {item.initialText ? ` · ${item.initialText} (${item.initialLineCount}줄)` : ""}
                   </strong>
                   <small>
                     {item.selectedOptions
@@ -1180,9 +1181,17 @@ export function OrderDetail({
                           </span>
                         </Field>
                       )}
+                      {product.customization.initialEnabled && (
+                        <Field label="이니셜 줄 수" full required>
+                          <select aria-required="true" value={item.initialLineCount} onChange={(event) => updateItem(index, { initialLineCount: Number(event.target.value) as 1 | 2 })}>
+                            <option value={1}>1줄</option>
+                            <option value={2}>2줄</option>
+                          </select>
+                        </Field>
+                      )}
                       {product.customization.stickerEnabled && (
                         <>
-                          <Field label="랜덤 이니셜 스티커" full>
+                          <Field label="랜덤 스티커" full>
                             <select
                               value={
                                 item.stickerSelected ? "selected" : "unselected"

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Script from "next/script";
+import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import {
@@ -82,7 +83,8 @@ function itemDefaults(product: ProductConfig): OrderFormInput["items"][number] {
     itemType: product.type,
     selectedOptionValueIds,
     initialText: "",
-    stickerSelected: false,
+    initialLineCount: 1,
+    stickerSelected: product.customization.stickerEnabled ? null : false,
     stickerCategories: "",
     extraRequest: "",
     images: [],
@@ -781,6 +783,14 @@ export function OrderForm({
                         </span>
                       </Field>
                     )}
+                    {product.customization.initialEnabled && (
+                      <Field label="이니셜 줄 수" full required error={form.formState.errors.items?.[index]?.initialLineCount?.message}>
+                        <select aria-required="true" {...form.register(`items.${index}.initialLineCount`, { valueAsNumber: true })}>
+                          <option value={1}>1줄</option>
+                          <option value={2}>2줄</option>
+                        </select>
+                      </Field>
+                    )}
                     {product.optionGroups
                       .filter((group) => group.active)
                       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -886,17 +896,19 @@ export function OrderForm({
                   </div>
                   {product.customization.stickerEnabled && (
                     <div className="form-grid compact-grid sticker-selection-fields">
-                      <Field label="랜덤 이니셜 스티커" full>
+                      <Field label="랜덤 스티커" full required error={form.formState.errors.items?.[index]?.stickerSelected?.message}>
                         <select
+                          required
+                          aria-required="true"
                           value={
-                            current.stickerSelected ? "selected" : "unselected"
+                            current.stickerSelected == null ? "" : current.stickerSelected ? "selected" : "unselected"
                           }
                           onChange={(event) => {
-                            const selected = event.target.value === "selected";
+                            const selected = event.target.value === "" ? null : event.target.value === "selected";
                             form.setValue(
                               `items.${index}.stickerSelected`,
                               selected,
-                              { shouldDirty: true },
+                              { shouldDirty: true, shouldValidate: true },
                             );
                             if (!selected)
                               form.setValue(
@@ -906,12 +918,12 @@ export function OrderForm({
                               );
                           }}
                         >
+                          <option value="">-</option>
                           <option value="unselected">미선택</option>
                           <option value="selected">선택</option>
                         </select>
                         <span className="field__hint">
-                          말씀해주신 카테고리를 바탕으로 이니셜과 가장 잘
-                          어울리는 디자인을 랜덤 구성하여 제작합니다.
+                          공룡, 자동차, 하트 등 꾸밈 요소를 이니셜과 어울리게 랜덤으로 배치합니다.
                         </span>
                       </Field>
                       {current.stickerSelected && (
@@ -935,6 +947,16 @@ export function OrderForm({
                         </Field>
                       )}
                     </div>
+                  )}
+                  {product.customization.stickerEnabled && (
+                    <Image
+                      src="/random-sticker-example.jpeg"
+                      alt="랜덤 스티커 예시: Mom 이니셜 주변에 구름, 하트, 꽃, 무지개를 배치한 모습"
+                      width={1920}
+                      height={1080}
+                      sizes="(max-width: 480px) 100vw, 400px"
+                      style={{ display: "block", width: "100%", maxWidth: 400, height: "auto", marginBlock: 16 }}
+                    />
                   )}
                   {(product.customization.referenceImagesEnabled ||
                     product.customization.extraRequestEnabled) && (

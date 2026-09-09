@@ -189,6 +189,7 @@ const adminOrderItemUpdateSchema = z.object({
   orderItemId: z.uuid(),
   selectedOptionValueIds: z.array(z.uuid()).max(30),
   initialText: z.string().trim().max(40).refine((text) => !text || /^[A-Za-z ]+$/.test(text), '이니셜은 영문 대·소문자만 입력해주세요.').refine((text) => text.replaceAll(' ', '').length <= INITIAL_TEXT_LIMIT, `이니셜은 공백 제외 ${INITIAL_TEXT_LIMIT}자까지 입력할 수 있습니다.`),
+  initialLineCount: z.union([z.literal(1), z.literal(2)]),
   stickerSelected: z.boolean(),
   stickerCategories: z.string().trim().max(200),
   extraRequest: z.string().trim().max(300),
@@ -214,6 +215,7 @@ export async function updateOrderItemAction(formData: FormData) {
     orderItemId: value(formData, 'orderItemId'),
     selectedOptionValueIds: jsonValue(formData, 'selectedOptionValueIds', null),
     initialText: value(formData, 'initialText'),
+    initialLineCount: Number(value(formData, 'initialLineCount')),
     stickerSelected: value(formData, 'stickerSelected') === 'true',
     stickerCategories: value(formData, 'stickerCategories'),
     extraRequest: value(formData, 'extraRequest'),
@@ -228,6 +230,7 @@ export async function updateOrderItemAction(formData: FormData) {
     p_payload: {
       selectedOptionValueIds: parsed.data.selectedOptionValueIds,
       initialText: parsed.data.initialText,
+      initialLineCount: parsed.data.initialLineCount,
       stickerSelected: parsed.data.stickerSelected,
       stickerCategories: parsed.data.stickerSelected ? parsed.data.stickerCategories : '',
       extraRequest: parsed.data.extraRequest,

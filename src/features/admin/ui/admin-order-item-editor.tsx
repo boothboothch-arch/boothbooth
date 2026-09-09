@@ -32,6 +32,7 @@ function money(value: number) {
 export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, index, product, logs }: Props) {
   const [editing, setEditing] = useState(false)
   const [selectedOptionValueIds, setSelectedOptionValueIds] = useState(() => item.selectedOptions.map((option) => option.valueId))
+  const [initialLineCount, setInitialLineCount] = useState(item.initialLineCount)
   const [initialText, setInitialText] = useState(item.initialText)
   const [stickerSelected, setStickerSelected] = useState(item.stickerSelected)
   const [stickerCategories, setStickerCategories] = useState(item.stickerCategories.join(', '))
@@ -50,6 +51,7 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
 
   function reset() {
     setSelectedOptionValueIds(item.selectedOptions.map((option) => option.valueId))
+    setInitialLineCount(item.initialLineCount)
     setInitialText(item.initialText)
     setStickerSelected(item.stickerSelected)
     setStickerCategories(item.stickerCategories.join(', '))
@@ -82,7 +84,7 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
     <article className={`admin-custom-item ${editing ? 'admin-custom-item--editing' : ''}`}>
       <div className="admin-custom-item__title">
         <span>{item.itemType === 'shirt' ? <Shirt size={17} /> : <ShoppingBag size={17} />}</span>
-        <strong>{index + 1}. {item.productName}{item.initialText ? ` · ${item.initialText}` : ''}</strong>
+        <strong>{index + 1}. {item.productName}{item.initialText ? ` · ${item.initialText} (${item.initialLineCount}줄)` : ''}</strong>
         <div className="admin-custom-item__title-actions">
           <b>{money(item.lineAmount)}</b>
           {editable && !editing && <Button type="button" variant="secondary" onClick={() => setEditing(true)}><Pencil size={12} /> 수정</Button>}
@@ -100,6 +102,7 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
         <input type="hidden" name="orderNumber" value={orderNumber} />
         <input type="hidden" name="orderItemId" value={item.id} />
         <input type="hidden" name="selectedOptionValueIds" value={JSON.stringify(selectedOptionValueIds)} />
+        <input type="hidden" name="initialLineCount" value={initialLineCount} />
         <input type="hidden" name="stickerSelected" value={String(stickerSelected)} />
         <div className="form-grid">
           {product.optionGroups.filter((group) => group.active).sort((a, b) => a.sortOrder - b.sortOrder).map((group) => {
@@ -117,8 +120,9 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
             </div>
           })}
           {product.customization.initialEnabled && <div className="field field--full"><label>이니셜</label><input name="initialText" maxLength={40} value={initialText} onChange={(event) => setInitialText(limitInitialTextInput(event.target.value))} placeholder={`영문, 공백 제외 최대 ${INITIAL_TEXT_LIMIT}자`} /><span className="field__hint">공백 제외 {initialText.replaceAll(' ', '').length}/{INITIAL_TEXT_LIMIT}자</span></div>}
+          {product.customization.initialEnabled && <div className="field field--full"><label>이니셜 줄 수</label><select value={initialLineCount} onChange={(event) => setInitialLineCount(Number(event.target.value) as 1 | 2)}><option value={1}>1줄</option><option value={2}>2줄</option></select></div>}
           {!product.customization.initialEnabled && <input type="hidden" name="initialText" value={initialText} />}
-          {product.customization.stickerEnabled && <div className="field field--full"><label>랜덤 이니셜 스티커</label><select value={stickerSelected ? 'selected' : 'unselected'} onChange={(event) => { const next = event.target.value === 'selected'; setStickerSelected(next); if (!next) setStickerCategories('') }}><option value="unselected">미선택</option><option value="selected">선택</option></select></div>}
+          {product.customization.stickerEnabled && <div className="field field--full"><label>랜덤 스티커</label><select value={stickerSelected ? 'selected' : 'unselected'} onChange={(event) => { const next = event.target.value === 'selected'; setStickerSelected(next); if (!next) setStickerCategories('') }}><option value="unselected">미선택</option><option value="selected">선택</option></select></div>}
           {product.customization.stickerEnabled && stickerSelected && <div className="field field--full"><label>원하는 스티커 카테고리 <span className="required-mark" aria-hidden="true">*</span><span className="sr-only">필수</span></label><input name="stickerCategories" aria-required="true" required maxLength={200} value={stickerCategories} onChange={(event) => setStickerCategories(event.target.value)} /></div>}
           {(!product.customization.stickerEnabled || !stickerSelected) && <input type="hidden" name="stickerCategories" value={stickerCategories} />}
           {product.customization.extraRequestEnabled ? <div className="field field--full"><label>기타 요청</label><textarea name="extraRequest" maxLength={300} value={extraRequest} onChange={(event) => setExtraRequest(event.target.value)} /></div> : <input type="hidden" name="extraRequest" value={extraRequest} />}

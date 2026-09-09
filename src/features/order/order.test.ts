@@ -11,7 +11,7 @@ const validOrder = {
   customerName: '홍길동', phone: '010-1234-5678', email: 'buyer@example.com', depositorName: '홍길동',
   fulfillmentType: 'shipping', postalCode: '04524', address: '서울 중구 세종대로 110', addressDetail: '1층',
   cashReceiptType: 'none', cashReceiptIdentifier: '',
-  items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'], initialText: 'Min', stickerSelected: true, stickerCategories: '공룡, 무지개', extraRequest: '', images: [] }],
+  items: [{ clientId: crypto.randomUUID(), productId: products[0].id, itemType: 'shirt', selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'], initialText: 'Min', initialLineCount: 1, stickerSelected: true, stickerCategories: '공룡, 무지개', extraRequest: '', images: [] }],
   privacyConsent: true, customOrderConsent: true,
 }
 
@@ -26,6 +26,23 @@ describe('order validation', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerCategories: '' }] }).success).toBe(false)
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerCategories: ' , ' }] }).success).toBe(false)
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerSelected: false, stickerCategories: '' }] }).success).toBe(true)
+  })
+  it('스티커 선택 전에는 제출을 거절하고 명시적인 미선택은 허용한다', () => {
+    for (const stickerSelected of [null, undefined, '']) {
+      const result = orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerSelected }] })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error.issues.some((issue) => issue.path.join('.') === 'items.0.stickerSelected')).toBe(true)
+    }
+    expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], stickerSelected: false, stickerCategories: '' }] }).success).toBe(true)
+  })
+  it('이니셜 줄 수는 1줄 또는 2줄만 허용하고 저장할 입력에 유지한다', () => {
+    for (const initialLineCount of [1, 2]) {
+      const parsed = orderFormSchema.parse({ ...validOrder, items: [{ ...validOrder.items[0], initialLineCount }] })
+      expect(parsed.items[0].initialLineCount).toBe(initialLineCount)
+    }
+    for (const initialLineCount of [undefined, null, 0, 3, '2']) {
+      expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialLineCount }] }).success).toBe(false)
+    }
   })
   it('이니셜은 공백 제외 영문 12자까지만 허용한다', () => {
     expect(orderFormSchema.safeParse({ ...validOrder, items: [{ ...validOrder.items[0], initialText: 'ABCDEFGHIJKL' }] }).success).toBe(true)
@@ -58,7 +75,7 @@ describe('order validation', () => {
       productId: products[0].id,
       itemType: 'shirt' as const,
       selectedOptionValueIds: ['40000000-0000-4000-8000-000000000001'],
-      initialText: 'Min',
+      initialText: 'Min', initialLineCount: 1,
       stickerSelected: false,
       stickerCategories: '',
       extraRequest: '',
@@ -74,6 +91,8 @@ describe('order validation', () => {
       items: [item],
     }
     expect(customerOrderUpdateSchema.safeParse(update).success).toBe(true)
+    expect(customerOrderUpdateSchema.parse({ ...update, items: [{ ...item, initialLineCount: 2 }] }).items[0].initialLineCount).toBe(2)
+    expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, initialLineCount: 3 }] }).success).toBe(false)
     expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, stickerSelected: true, stickerCategories: '' }] }).success).toBe(false)
     expect(customerOrderUpdateSchema.safeParse({ ...update, items: [{ ...item, images: [...item.images, crypto.randomUUID()] }] }).success).toBe(false)
     expect(customerOrderUpdateSchema.safeParse({ ...update, items: Array.from({ length: 7 }, () => ({ ...item, id: crypto.randomUUID(), images: Array.from({ length: 3 }, () => crypto.randomUUID()) })) }).success).toBe(false)

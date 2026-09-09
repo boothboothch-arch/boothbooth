@@ -44,6 +44,7 @@ export type OrderItemView = {
   itemType: ProductType
   selectedOptions: { groupId: string; groupName: string; valueId: string; valueLabel: string; priceDelta: number }[]
   initialText: string
+  initialLineCount: 1 | 2
   stickerSelected: boolean
   stickerCategories: string[]
   extraRequest: string

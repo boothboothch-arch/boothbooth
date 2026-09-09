@@ -88,6 +88,7 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderView |
       itemType: item.item_type,
       selectedOptions: Array.isArray(item.selected_options) ? item.selected_options : [],
       initialText: item.initial_text,
+      initialLineCount: item.initial_line_count === 2 ? 2 : 1,
       stickerSelected: item.sticker_selected,
       stickerCategories: item.sticker_categories ?? [],
       extraRequest: item.extra_request,
