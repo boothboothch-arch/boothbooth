@@ -318,7 +318,12 @@ export async function saveProductAction(formData: FormData) {
     p_product_id: productId,
     p_config: {
       name: value(formData, 'name'), description: value(formData, 'description'), itemType: value(formData, 'itemType'),
-      unitPrice, stockLimit, sortOrder, active: formData.get('active') === 'on', optionGroups: optionGroups.data,
+      unitPrice, stockLimit, sortOrder, active: formData.get('active') === 'on',
+      // The catalog editor's array order is the customer-facing display order.
+      optionGroups: optionGroups.data.map((group, groupIndex) => ({
+        ...group, sortOrder: groupIndex,
+        values: group.values.map((option, valueIndex) => ({ ...option, sortOrder: valueIndex })),
+      })),
       customizationConfig: customizationConfig.data,
     },
   })

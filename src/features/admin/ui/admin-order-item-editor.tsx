@@ -105,8 +105,8 @@ export function AdminOrderItemEditor({ orderId, orderNumber, orderState, item, i
         <input type="hidden" name="initialLineCount" value={initialLineCount} />
         <input type="hidden" name="stickerSelected" value={String(stickerSelected)} />
         <div className="form-grid">
-          {product.optionGroups.filter((group) => group.active).sort((a, b) => a.sortOrder - b.sortOrder).map((group) => {
-            const activeValues = group.values.filter((option) => option.active).sort((a, b) => a.sortOrder - b.sortOrder)
+          {product.optionGroups.filter((group) => group.active).map((group) => {
+            const activeValues = group.values.filter((option) => option.active)
             const selectedCount = activeValues.filter((option) => selected.has(option.id)).length
             const minimum = group.required ? Math.max(1, group.minSelections) : group.minSelections
             return <div className="field field--full" key={group.id}>

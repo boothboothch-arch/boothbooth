@@ -71,8 +71,7 @@ function itemDefaults(product: ProductConfig): OrderFormInput["items"][number] {
     .filter((group) => group.active)
     .flatMap((group) => {
       const activeValues = group.values
-        .filter((option) => option.active)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
+        .filter((option) => option.active);
       const minimum = group.required
         ? Math.max(1, group.minSelections)
         : group.minSelections;
@@ -728,14 +727,12 @@ export function OrderForm({
                     )}
                     {product.optionGroups
                       .filter((group) => group.active)
-                      .sort((a, b) => a.sortOrder - b.sortOrder)
                       .map((group) => {
                         const selected = new Set(
                           current.selectedOptionValueIds ?? [],
                         );
                         const activeValues = group.values
-                          .filter((option) => option.active)
-                          .sort((a, b) => a.sortOrder - b.sortOrder);
+                          .filter((option) => option.active);
                         const selectedCount = activeValues.filter((option) =>
                           selected.has(option.id),
                         ).length;
