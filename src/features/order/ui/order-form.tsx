@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { prepareImage, type ImageDraft } from "../client-image";
+import { useOrderReservation } from "../use-order-reservation";
 import {
   INITIAL_TEXT_LIMIT,
   itemPrice,
@@ -105,8 +106,8 @@ export function OrderForm({
       (product) =>
         product.remainingStock === null || product.remainingStock > 0,
     ) ?? products[0];
-  const [now, setNow] = useState(() => Date.parse(serverNow));
-  const [idleWarning, setIdleWarning] = useState(false);
+  const { now, idleWarning, reservationError, expired, markActivity, beginSubmission, submissionFailed, releaseAndLeave } =
+    useOrderReservation(hardExpiresAt, serverNow);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadLabel, setUploadLabel] = useState("");
@@ -114,9 +115,6 @@ export function OrderForm({
   const [imageErrors, setImageErrors] = useState<Record<string, string>>({});
   const [postcodeError, setPostcodeError] = useState("");
   const imagesRef = useRef(images);
-  const clockOffset = useRef(Date.parse(serverNow) - Date.now());
-  const activityAt = useRef(Date.now());
-  const warnedAt = useRef<number | null>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
   const uploadedByLocalId = useRef<Record<string, string>>({});
   const cashReceiptDetailsRef = useRef<HTMLDetailsElement>(null);
@@ -195,69 +193,6 @@ export function OrderForm({
         .forEach((image) => URL.revokeObjectURL(image.preview)),
     [],
   );
-
-  const releaseAndLeave = useCallback(async (message: string) => {
-    await fetch("/api/reservations/release", {
-      method: "POST",
-      keepalive: true,
-    }).catch(() => undefined);
-    window.alert(message);
-    window.location.assign("/");
-  }, []);
-
-  useEffect(() => {
-    const markActivity = () => {
-      activityAt.current = Date.now();
-      warnedAt.current = null;
-      setIdleWarning(false);
-    };
-    const events: (keyof WindowEventMap)[] = [
-      "pointerdown",
-      "keydown",
-      "input",
-    ];
-    events.forEach((event) =>
-      window.addEventListener(event, markActivity, { passive: true }),
-    );
-    const timer = window.setInterval(() => {
-      const clientNow = Date.now();
-      const serverCurrent = clientNow + clockOffset.current;
-      setNow(serverCurrent);
-      const idle = clientNow - activityAt.current;
-      if (idle >= 5 * 60_000 && !warnedAt.current) {
-        warnedAt.current = clientNow;
-        setIdleWarning(true);
-      }
-      if (idle >= 6 * 60_000)
-        void releaseAndLeave("오랫동안 활동이 없어 주문서가 종료되었어요.");
-      if (serverCurrent >= Date.parse(hardExpiresAt))
-        void releaseAndLeave("30분의 주문서 작성 시간이 끝났어요.");
-    }, 1_000);
-    const heartbeat = window.setInterval(async () => {
-      if (Date.now() - activityAt.current >= 5 * 60_000) return;
-      const response = await fetch("/api/reservations/heartbeat", {
-        method: "POST",
-      });
-      if (!response.ok)
-        void releaseAndLeave("주문 자리가 만료되었어요. 다시 입장해주세요.");
-    }, 30_000);
-    const releaseOnClose = () => {
-      if (!submitting)
-        void fetch("/api/reservations/release", {
-          method: "POST",
-          keepalive: true,
-        });
-    };
-    window.addEventListener("pagehide", releaseOnClose);
-    return () => {
-      events.forEach((event) =>
-        window.removeEventListener(event, markActivity),
-      );
-      window.clearInterval(timer);
-      window.clearInterval(heartbeat);
-      window.removeEventListener("pagehide", releaseOnClose);
-    };
-  }, [hardExpiresAt, releaseAndLeave, submitting]);
 
   function openPostcode() {
     const Postcode = window.kakao?.Postcode ?? window.daum?.Postcode;
@@ -458,6 +393,7 @@ export function OrderForm({
   }
 
   async function submit(value: OrderFormInput) {
+    if (!beginSubmission()) return;
     setSubmitting(true);
     setSubmitError("");
     setImageErrors({});
@@ -496,6 +432,7 @@ export function OrderForm({
         setSubmitError(
           error instanceof Error ? error.message : "잠시 후 다시 시도해주세요.",
         );
+      submissionFailed();
       setSubmitting(false);
       setUploadLabel("");
     }
@@ -516,15 +453,16 @@ export function OrderForm({
       <div className="timer-bar" aria-live="polite">
         <div>
           <strong>
-            <Clock3 size={15} /> 주문 자리 확보 중
+            <Clock3 size={15} /> {expired ? "주문 자리 만료" : "주문 자리 확보 중"}
           </strong>
           <span>입장 후 30분 안에 제출해주세요.</span>
           <small className="timer-bar__idle-note">
-            5분간 입력,터치가 없으면 자동 종료됩니다.
+            5분간 입력·터치가 없으면 안내 후 주문 자리가 만료됩니다.
           </small>
         </div>
         <b>{remainingLabel(remaining)}</b>
       </div>
+      {reservationError && <p className="form-error" role="alert">{reservationError}</p>}
       {idleWarning && (
         <div className="idle-warning" role="alertdialog" aria-modal="true">
           <div>
@@ -535,10 +473,7 @@ export function OrderForm({
               반환됩니다.
             </p>
             <Button
-              onClick={() => {
-                activityAt.current = Date.now();
-                setIdleWarning(false);
-              }}
+              onClick={markActivity}
             >
               계속 작성하기
             </Button>
@@ -1288,16 +1223,18 @@ export function OrderForm({
             {form.formState.errors.customOrderConsent.message}
           </p>
         )}
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && <p className="form-error" role="alert">{submitError}</p>}
+        {reservationError && <p className="form-error">{reservationError}</p>}
         <div className="form-actions sticky-submit">
           <Button
             type="button"
             variant="ghost"
+            disabled={submitting}
             onClick={() => void releaseAndLeave("주문서 작성을 종료했어요.")}
           >
             나가기
           </Button>
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting || expired}>
             {submitting
               ? uploadLabel || "주문 접수 중…"
               : `${totals.total.toLocaleString("ko-KR")}원 주문하기`}

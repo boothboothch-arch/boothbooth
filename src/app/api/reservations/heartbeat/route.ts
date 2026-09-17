@@ -9,7 +9,13 @@ export async function POST(request: NextRequest) {
     const token = request.cookies.get('bb_reservation')?.value
     if (!token) throw new ApiProblem('RESERVATION_EXPIRED', '주문서 이용 시간이 끝났어요.', 410)
     const { data, error } = await createPrivilegedClient().rpc('heartbeat_reservation', { p_token_hash: hmac(token) })
-    if (error) throw new ApiProblem('RESERVATION_EXPIRED', '주문서 이용 시간이 끝났어요.', 410)
+    if (error) {
+      if (error.message.includes('RESERVATION_EXPIRED')) {
+        throw new ApiProblem('RESERVATION_EXPIRED', '주문서 이용 시간이 끝났어요.', 410)
+      }
+      console.error('Reservation heartbeat failed', { code: error.code })
+      throw new ApiProblem('RESERVATION_CHECK_FAILED', '주문 자리를 확인하지 못했어요. 잠시 후 다시 확인합니다.', 503)
+    }
     return NextResponse.json(data)
   } catch (error) { return apiError(error) }
 }
