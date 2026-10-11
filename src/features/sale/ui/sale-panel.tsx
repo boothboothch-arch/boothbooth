@@ -102,7 +102,7 @@ export function SalePanel({
 
       <h1 className="sale-panel__title">{status.title}</h1>
 
-      {status.phase === 'scheduled' ? (
+      {status.phase === 'scheduled' && (
         <>
           <span className="sale-panel__eyebrow"><Clock3 size={14} /> 주문 시작까지</span>
           <time className="sale-panel__date" dateTime={status.startsAt}>{saleDate(status.startsAt)} 오픈</time>
@@ -113,12 +113,6 @@ export function SalePanel({
             <CountdownUnit value={countdown.seconds} label="초" />
           </div>
         </>
-      ) : (
-        <div className="remaining">
-          <span>남은 주문</span>
-          <strong>{status.remainingCount}<small> / {status.orderLimit}</small></strong>
-          <p>작성 중인 주문서를 포함한 실시간 수량이에요.</p>
-        </div>
       )}
 
       {!status.configured && <p className="notice notice--setup">Supabase 연결 후 판매를 시작할 수 있어요.</p>}

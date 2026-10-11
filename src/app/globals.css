@@ -444,27 +444,6 @@ textarea:focus-visible {
   color: #999893;
   font-size: 9px;
 }
-.remaining {
-  margin: 34px 0 29px;
-}
-.remaining > span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-.remaining strong {
-  display: block;
-  margin: 8px 0 5px;
-  color: var(--ink);
-  font-size: 54px;
-  line-height: 1;
-  letter-spacing: -0.06em;
-}
-.remaining strong small {
-  color: #aaa9a5;
-  font-size: 18px;
-}
-.remaining p,
 .sale-panel__hint {
   color: #92918d;
   font-size: 11px;
@@ -834,17 +813,8 @@ textarea:focus-visible {
   color: #59836a;
   font-weight: 700;
 }
-.launch-status .remaining {
-  margin: 26px 0 24px;
-}
-.launch-status .remaining > span,
-.launch-status .remaining p,
 .launch-status .sale-panel__hint {
   color: rgba(255, 255, 255, 0.68);
-}
-.launch-status .remaining strong,
-.launch-status .remaining strong small {
-  color: white;
 }
 .launch-status .sale-panel__button {
   min-height: 56px;
