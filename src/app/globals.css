@@ -784,6 +784,16 @@ textarea:focus-visible {
   letter-spacing: -0.055em;
   word-break: keep-all;
 }
+.sale-panel__closed-message {
+  margin: 26px 0 0;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.launch-status .sale-panel__closed-message {
+  color: rgba(255, 255, 255, 0.85);
+}
 .launch-status .sale-panel__eyebrow {
   margin-top: 26px;
   color: rgba(255, 255, 255, 0.72);
@@ -812,6 +822,12 @@ textarea:focus-visible {
 .launch-status .countdown__unit span {
   color: #59836a;
   font-weight: 700;
+}
+.launch-status .sale-panel__countdown-note {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .launch-status .sale-panel__hint {
   color: rgba(255, 255, 255, 0.68);
