@@ -4013,7 +4013,7 @@ textarea:focus-visible {
   }
   .launch-hero {
     grid-template-columns: 1fr;
-    min-height: calc(100svh - 68px);
+    min-height: 0;
     padding: 18px 20px 34px;
     gap: 16px;
     align-content: start;
