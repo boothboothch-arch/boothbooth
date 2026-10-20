@@ -21,9 +21,12 @@ describe('sale countdown', () => {
     expect(screen.getByText('주문 시작까지')).toBeInTheDocument()
     expect(screen.queryByText('주문 마감까지')).not.toBeInTheDocument()
   })
-  it.each(['open', 'temporarily_full'] as const)('shows the closing countdown while %s', (phase) => {
+  it.each(['open', 'temporarily_full'] as const)('hides the closing countdown and refresh button while %s', (phase) => {
     show(phase)
-    expect(screen.getByText('주문 마감까지')).toBeInTheDocument()
+    expect(screen.queryByText('주문 마감까지')).not.toBeInTheDocument()
+    expect(document.querySelector('.sale-panel__date')).not.toBeInTheDocument()
+    expect(document.querySelector('.countdown')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '판매 상태 새로고침' })).not.toBeInTheDocument()
     expect(screen.getByText('준비된 수량 소진 시 일찍 마감될 수 있어요.')).toBeInTheDocument()
   })
   it.each(['sold_out', 'manually_closed', 'ended'] as const)('shows closure instead of countdown while %s', (phase) => {

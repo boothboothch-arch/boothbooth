@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Clock3, RefreshCw } from 'lucide-react'
+import { ArrowRight, Clock3 } from 'lucide-react'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import type { SaleStatus } from '../domain/sale'
@@ -66,13 +66,11 @@ export function SalePanel({
   }, [])
 
   const countdown = useMemo(() => {
-    const target = status.phase === 'scheduled' ? Date.parse(status.startsAt) : Date.parse(status.endsAt)
-    return formatCountdown(target - now)
-  }, [now, status.endsAt, status.phase, status.startsAt])
+    return formatCountdown(Date.parse(status.startsAt) - now)
+  }, [now, status.startsAt])
 
   const phase = status.configured && now >= Date.parse(status.endsAt) ? 'ended' : status.phase
   const isScheduled = phase === 'scheduled'
-  const showCountdown = isScheduled || phase === 'open' || phase === 'temporarily_full'
   const canEnter = status.configured && phase === 'open' && status.remainingCount > 0
   const tone = phase === 'open' ? 'green' : isScheduled ? 'blue' : 'neutral'
 
@@ -100,23 +98,23 @@ export function SalePanel({
     <aside className="sale-panel" aria-live="polite">
       <div className="sale-panel__header">
         <Badge tone={tone}>{getSaleLabel(phase)}</Badge>
-        <button className="icon-button" onClick={() => void refresh()} aria-label="판매 상태 새로고침"><RefreshCw size={15} /></button>
       </div>
 
       <h1 className="sale-panel__title">{status.title}</h1>
 
-      {showCountdown ? (
+      {isScheduled ? (
         <>
-          <span className="sale-panel__eyebrow"><Clock3 size={14} /> {isScheduled ? '주문 시작까지' : '주문 마감까지'}</span>
-          <time className="sale-panel__date" dateTime={isScheduled ? status.startsAt : status.endsAt}>{saleDate(isScheduled ? status.startsAt : status.endsAt)} {isScheduled ? '오픈' : '마감'}</time>
+          <span className="sale-panel__eyebrow"><Clock3 size={14} /> 주문 시작까지</span>
+          <time className="sale-panel__date" dateTime={status.startsAt}>{saleDate(status.startsAt)} 오픈</time>
           <div className="countdown">
             <CountdownUnit value={countdown.days} label="일" />
             <CountdownUnit value={countdown.hours} label="시간" />
             <CountdownUnit value={countdown.minutes} label="분" />
             <CountdownUnit value={countdown.seconds} label="초" />
           </div>
-          {!isScheduled && <p className="sale-panel__countdown-note">준비된 수량 소진 시 일찍 마감될 수 있어요.</p>}
         </>
+      ) : phase === 'open' || phase === 'temporarily_full' ? (
+        <p className="sale-panel__countdown-note">준비된 수량 소진 시 일찍 마감될 수 있어요.</p>
       ) : (
         <p className="sale-panel__closed-message">{phase === 'sold_out' ? '준비된 수량이 모두 소진되었어요.' : '주문이 마감되었습니다.'}</p>
       )}

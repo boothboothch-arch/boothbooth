@@ -207,7 +207,7 @@ export function SaleHome({ renderedAt, status, products, saleConfig, testSaleId 
               <ul className="home-guide__list">
                 <li>주문 후 안내된 계좌로 1시간 이내 입금</li>
                 <li>커스텀 상품은 선입금 확인 후 제작 진행</li>
-                <li>주문 후 10~14일 이내 발송</li>
+                <li>주문 후 7~10일 이내 발송</li>
                 <li>제작 시작 이후에는 교환 및 환불 불가</li>
                 <li>
                   의류 불량 또는 주문 내용과 다르게 제작된 상품은 긴급 제작으로
